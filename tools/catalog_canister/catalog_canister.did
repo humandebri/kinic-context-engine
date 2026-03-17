@@ -1,0 +1,52 @@
+type SourceMetadata = record {
+  source_id : text;
+  title : text;
+  aliases : vec text;
+  trust : text;
+  domain : text;
+  skill_kind : opt text;
+  targets : vec text;
+  capabilities : vec text;
+  canister_ids : vec text;
+  supported_versions : vec text;
+  retrieved_at : text;
+  citations : vec text;
+};
+
+type ResolvedCatalogSource = record {
+  source_id : text;
+  title : text;
+  score : float32;
+  reasons : vec text;
+};
+
+type FilterSourcesArgs = record {
+  domain : opt text;
+  trust : opt text;
+  version : opt text;
+  limit : opt nat32;
+};
+
+type SourceUpsert = record {
+  source_id : text;
+  title : text;
+  aliases : vec text;
+  trust : text;
+  domain : text;
+  skill_kind : opt text;
+  targets : vec text;
+  capabilities : vec text;
+  canister_ids : vec text;
+  supported_versions : vec text;
+  retrieved_at : text;
+  citations : vec text;
+};
+
+service : {
+  list_sources : () -> (vec SourceMetadata) query;
+  get_source : (text) -> (opt SourceMetadata) query;
+  resolve_sources : (text, nat32) -> (vec ResolvedCatalogSource) query;
+  filter_sources : (FilterSourcesArgs) -> (vec SourceMetadata) query;
+  admin_upsert_source : (SourceUpsert) -> ();
+  admin_replace_catalog : (vec SourceUpsert) -> ();
+}

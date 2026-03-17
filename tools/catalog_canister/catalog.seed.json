@@ -1,0 +1,58 @@
+[
+  {
+    "source_id": "/vercel/next.js",
+    "title": "Next.js Docs",
+    "aliases": ["next", "nextjs", "next.js", "middleware"],
+    "trust": "official",
+    "domain": "code_docs",
+    "skill_kind": null,
+    "targets": [],
+    "capabilities": [],
+    "canister_ids": [],
+    "supported_versions": ["14", "15"],
+    "retrieved_at": "2026-03-17T00:00:00Z",
+    "citations": ["https://nextjs.org/docs"]
+  },
+  {
+    "source_id": "/supabase/docs",
+    "title": "Supabase Docs",
+    "aliases": ["supabase", "auth"],
+    "trust": "official",
+    "domain": "code_docs",
+    "skill_kind": null,
+    "targets": [],
+    "capabilities": [],
+    "canister_ids": [],
+    "supported_versions": ["2026"],
+    "retrieved_at": "2026-03-17T00:00:00Z",
+    "citations": ["https://supabase.com/docs"]
+  },
+  {
+    "source_id": "/react/docs",
+    "title": "React Docs",
+    "aliases": ["react", "hooks"],
+    "trust": "official",
+    "domain": "code_docs",
+    "skill_kind": null,
+    "targets": [],
+    "capabilities": [],
+    "canister_ids": [],
+    "supported_versions": ["19"],
+    "retrieved_at": "2026-03-17T00:00:00Z",
+    "citations": ["https://react.dev"]
+  },
+  {
+    "source_id": "/skills/nextjs/migration",
+    "title": "Next.js Migration Skill",
+    "aliases": ["next migration", "nextjs migration", "upgrade"],
+    "trust": "curated",
+    "domain": "skill_knowledge",
+    "skill_kind": "migration",
+    "targets": ["nextjs"],
+    "capabilities": ["auth", "middleware", "routing"],
+    "canister_ids": [],
+    "supported_versions": [],
+    "retrieved_at": "2026-03-17T00:00:00Z",
+    "citations": ["https://github.com/ICME-Lab/kinic-context-engine/blob/main/skills/nextjs/migration/SKILL.md"]
+  }
+]

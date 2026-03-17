@@ -1,0 +1,10 @@
+[package]
+name = "kinic_context_core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.100"
+candid = "0.10.20"
+ic-agent = { version = "0.44.3", features = ["ring"] }
+serde = { version = "1.0.228", features = ["derive"] }

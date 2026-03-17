@@ -1,0 +1,58 @@
+(vec {
+  record {
+    source_id = "/vercel/next.js";
+    title = "Next.js Docs";
+    aliases = vec {"next"; "nextjs"; "next.js"; "middleware"};
+    trust = "official";
+    domain = "code_docs";
+    skill_kind = null;
+    targets = vec {};
+    capabilities = vec {};
+    canister_ids = vec {};
+    supported_versions = vec {"14"; "15"};
+    retrieved_at = "2026-03-17T00:00:00Z";
+    citations = vec {"https://nextjs.org/docs"};
+  };
+  record {
+    source_id = "/supabase/docs";
+    title = "Supabase Docs";
+    aliases = vec {"supabase"; "auth"};
+    trust = "official";
+    domain = "code_docs";
+    skill_kind = null;
+    targets = vec {};
+    capabilities = vec {};
+    canister_ids = vec {};
+    supported_versions = vec {"2026"};
+    retrieved_at = "2026-03-17T00:00:00Z";
+    citations = vec {"https://supabase.com/docs"};
+  };
+  record {
+    source_id = "/react/docs";
+    title = "React Docs";
+    aliases = vec {"react"; "hooks"};
+    trust = "official";
+    domain = "code_docs";
+    skill_kind = null;
+    targets = vec {};
+    capabilities = vec {};
+    canister_ids = vec {};
+    supported_versions = vec {"19"};
+    retrieved_at = "2026-03-17T00:00:00Z";
+    citations = vec {"https://react.dev"};
+  };
+  record {
+    source_id = "/skills/nextjs/migration";
+    title = "Next.js Migration Skill";
+    aliases = vec {"next migration"; "nextjs migration"; "upgrade"};
+    trust = "curated";
+    domain = "skill_knowledge";
+    skill_kind = opt "migration";
+    targets = vec {"nextjs"};
+    capabilities = vec {"auth"; "middleware"; "routing"};
+    canister_ids = vec {};
+    supported_versions = vec {};
+    retrieved_at = "2026-03-17T00:00:00Z";
+    citations = vec {"https://github.com/ICME-Lab/kinic-context-engine/blob/main/skills/nextjs/migration/SKILL.md"};
+  };
+})

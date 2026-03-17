@@ -1,0 +1,10 @@
+canisters:
+  - name: catalog_canister
+    build:
+      steps:
+        - type: script
+          commands:
+            - cargo build -p catalog_canister --target wasm32-wasip1 --release
+            - wasi2ic target/wasm32-wasip1/release/catalog_canister.wasm target/wasm32-wasip1/release/catalog_canister-wasi2ic.wasm
+            - cp target/wasm32-wasip1/release/catalog_canister-wasi2ic.wasm "$ICP_WASM_OUTPUT_PATH"
+            - ic-wasm "$ICP_WASM_OUTPUT_PATH" -o "$ICP_WASM_OUTPUT_PATH" metadata candid:service -f tools/catalog_canister/catalog_canister.did -v public --keep-name-section
