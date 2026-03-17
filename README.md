@@ -2,6 +2,13 @@
 
 Read-only Rust CLI for source resolution, retrieval, and evidence pack generation on top of a catalog canister and existing KINIC memory instances.
 
+## Status
+
+- workspace build and non-ignored tests pass locally
+- PocketIC ignored tests require `POCKET_IC_BIN`
+- live acceptance tests require real canister environment variables
+- this repo ships under the MIT license
+
 ## Commands
 
 - `kinic-context-cli resolve "<query>"`
@@ -81,15 +88,28 @@ kinic-context-cli pack "next migration auth changes" --include-skills
 
 ### live ICP verification
 
-- ignored live tests require `KINIC_CONTEXT_CATALOG_CANISTER_ID`
-- launcher verification additionally requires `KINIC_CONTEXT_LAUNCHER_CANISTER_ID`
-- `cargo test --workspace -- --ignored`
+- required:
+  - `KINIC_CONTEXT_CATALOG_CANISTER_ID`
+  - `KINIC_CONTEXT_IC_HOST` if not using `https://ic0.app`
+  - `KINIC_CONTEXT_LAUNCHER_CANISTER_ID` for launcher verification
+- run:
+
+```bash
+cargo test -p kinic-context-cli --test acceptance_live_tests -- --ignored
+```
 
 ### PocketIC integration tests
 
 - PocketIC tests are ignored by default and do not run in `cargo test --workspace`
-- set `POCKET_IC_BIN=/path/to/pocket-ic-server`
-- run `cargo test -p pocket_ic_tests -- --ignored`
+- set `POCKET_IC_BIN=/absolute/path/to/pocket-ic-server`
+- example:
+
+```bash
+export POCKET_IC_BIN=/Users/you/path/to/pocket-ic-server
+cargo test -p pocket_ic_tests -- --ignored
+```
+
+- the binary does not need to live inside this repository or inside an `icp` CLI directory
 - `resolve` is verified at the real CLI binary boundary
 - `query/pack` and error contracts are verified at the engine-level E2E layer
 
@@ -101,15 +121,22 @@ kinic-context-cli pack "next migration auth changes" --include-skills
 
 ## Catalog canister
 
-- location: [`tools/catalog_canister`](/Users/0xhude/Desktop/work/KINIC%20Context%20Engine/tools/catalog_canister)
+- location: `tools/catalog_canister`
 - storage: `ic-rusqlite`
 - migrations: `ic-sql-migrate`
-- project config: [`icp.yaml`](/Users/0xhude/Desktop/work/KINIC%20Context%20Engine/icp.yaml)
+- project config: `icp.yaml`
 - read API:
   - `list_sources()`
   - `get_source(source_id)`
   - `resolve_sources(query, limit)`
   - `filter_sources(args)`
+
+## OSS Release Checklist
+
+- add a real GitHub repository at the `repository` URL declared in `Cargo.toml`
+- keep `LICENSE` at the repo root
+- document live environment values before asking users to run ignored acceptance tests
+- avoid absolute local filesystem links in docs
 
 ## MVP sources
 

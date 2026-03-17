@@ -2,6 +2,9 @@
 name = "kinic_context_core"
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
+repository = "https://github.com/ICME-Lab/kinic-context-engine"
+description = "Shared read-only IC client and wire types for the KINIC context runtime."
 
 [dependencies]
 anyhow = "1.0.100"

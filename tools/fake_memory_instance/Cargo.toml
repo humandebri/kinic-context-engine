@@ -2,6 +2,9 @@
 name = "fake_memory_instance"
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
+repository = "https://github.com/ICME-Lab/kinic-context-engine"
+description = "Deterministic fake memory canister used by PocketIC tests."
 
 [lib]
 crate-type = ["cdylib", "rlib"]

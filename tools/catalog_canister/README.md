@@ -24,7 +24,7 @@ Admin methods are controller-only.
 
 ## Deploy
 
-この repo ルートの [`icp.yaml`](/Users/0xhude/Desktop/work/KINIC%20Context%20Engine/icp.yaml) から build/deploy できます。
+この repo ルートの `icp.yaml` から build/deploy できます。
 
 ```bash
 icp network start -d
@@ -32,7 +32,7 @@ icp deploy catalog_canister
 ```
 
 SQLite runtime は `wasm32-wasip1 + wasi2ic` 前提です。事前に `wasi2ic` を入れてください。
-`candid:service` metadata は `ic-wasm` で [`catalog_canister.did`](/Users/0xhude/Desktop/work/KINIC%20Context%20Engine/tools/catalog_canister/catalog_canister.did) から埋め込みます。
+`candid:service` metadata は `ic-wasm` で `tools/catalog_canister/catalog_canister.did` から埋め込みます。
 
 ## Seed data
 
