@@ -1,0 +1,168 @@
+[
+  {
+    "source_id": "/vercel/next.js",
+    "kind": "docs",
+    "enabled": true,
+    "public_urls": [
+      {"label": "middleware", "url": "https://nextjs.org/docs/app/building-your-application/routing/middleware"},
+      {"label": "auth", "url": "https://nextjs.org/docs/app/building-your-application/authentication"}
+    ],
+    "discovery_urls": [
+      {"label": "docs-index", "url": "https://nextjs.org/docs"},
+      {"label": "release-notes", "url": "https://nextjs.org/blog"}
+    ],
+    "normalization_profile": "docs_html",
+    "catalog_metadata": {
+      "title": "Next.js Docs",
+      "aliases": ["next", "nextjs", "next.js", "middleware"],
+      "domain": "code_docs",
+      "trust": "official",
+      "skill_kind": null,
+      "targets": [],
+      "capabilities": [],
+      "supported_versions": ["14", "15"],
+      "citations": ["https://nextjs.org/docs"],
+      "retrieved_at": "2026-03-18T00:00:00Z"
+    },
+    "memory_targets": {
+      "staging_canister_ids": [],
+      "prod_canister_ids": []
+    },
+    "cadence": "daily",
+    "version_strategy": "latest_supported_version",
+    "extraction_hints": {
+      "content_roots": ["main", "article"],
+      "drop_selectors": ["nav", "header", "footer", "aside"],
+      "chunk_target_chars": 900
+    },
+    "smoke_queries": {
+      "resolve": "next middleware",
+      "query": "middleware cookies",
+      "pack": "protect route in next.js with supabase auth"
+    }
+  },
+  {
+    "source_id": "/supabase/docs",
+    "kind": "docs",
+    "enabled": true,
+    "public_urls": [
+      {"label": "nextjs-auth", "url": "https://supabase.com/docs/guides/auth/server-side/nextjs"},
+      {"label": "auth-overview", "url": "https://supabase.com/docs/guides/auth"}
+    ],
+    "discovery_urls": [
+      {"label": "docs-index", "url": "https://supabase.com/docs"},
+      {"label": "changelog", "url": "https://supabase.com/changelog"}
+    ],
+    "normalization_profile": "docs_html",
+    "catalog_metadata": {
+      "title": "Supabase Docs",
+      "aliases": ["supabase", "auth"],
+      "domain": "code_docs",
+      "trust": "official",
+      "skill_kind": null,
+      "targets": [],
+      "capabilities": [],
+      "supported_versions": ["2026"],
+      "citations": ["https://supabase.com/docs"],
+      "retrieved_at": "2026-03-18T00:00:00Z"
+    },
+    "memory_targets": {
+      "staging_canister_ids": [],
+      "prod_canister_ids": []
+    },
+    "cadence": "daily",
+    "version_strategy": "latest_supported_version",
+    "extraction_hints": {
+      "content_roots": ["main", "article"],
+      "drop_selectors": ["nav", "header", "footer", "aside"],
+      "chunk_target_chars": 900
+    },
+    "smoke_queries": {
+      "resolve": "supabase auth",
+      "query": "server side auth",
+      "pack": "protect route in next.js with supabase auth"
+    }
+  },
+  {
+    "source_id": "/react/docs",
+    "kind": "docs",
+    "enabled": true,
+    "public_urls": [
+      {"label": "hooks", "url": "https://react.dev/reference/react"},
+      {"label": "useeffectevent", "url": "https://react.dev/reference/react/useEffectEvent"}
+    ],
+    "discovery_urls": [
+      {"label": "docs-index", "url": "https://react.dev"},
+      {"label": "blog", "url": "https://react.dev/blog"}
+    ],
+    "normalization_profile": "docs_html",
+    "catalog_metadata": {
+      "title": "React Docs",
+      "aliases": ["react", "hooks"],
+      "domain": "code_docs",
+      "trust": "official",
+      "skill_kind": null,
+      "targets": [],
+      "capabilities": [],
+      "supported_versions": ["19"],
+      "citations": ["https://react.dev"],
+      "retrieved_at": "2026-03-18T00:00:00Z"
+    },
+    "memory_targets": {
+      "staging_canister_ids": [],
+      "prod_canister_ids": []
+    },
+    "cadence": "daily",
+    "version_strategy": "latest_supported_version",
+    "extraction_hints": {
+      "content_roots": ["main", "article"],
+      "drop_selectors": ["nav", "header", "footer", "aside"],
+      "chunk_target_chars": 900
+    },
+    "smoke_queries": {
+      "resolve": "react hooks",
+      "query": "use effect event",
+      "pack": "migrate next auth code and react hooks"
+    }
+  },
+  {
+    "source_id": "/skills/nextjs/migration",
+    "kind": "skill",
+    "enabled": true,
+    "public_urls": [
+      {"label": "skill", "url": "https://github.com/ICME-Lab/kinic-context-engine/blob/main/skills/nextjs/migration/SKILL.md"}
+    ],
+    "discovery_urls": [
+      {"label": "repo-root", "url": "https://github.com/ICME-Lab/kinic-context-engine"}
+    ],
+    "normalization_profile": "skill_markdown",
+    "catalog_metadata": {
+      "title": "Next.js Migration Skill",
+      "aliases": ["next migration", "nextjs migration", "upgrade"],
+      "domain": "skill_knowledge",
+      "trust": "curated",
+      "skill_kind": "migration",
+      "targets": ["nextjs"],
+      "capabilities": ["auth", "middleware", "routing"],
+      "supported_versions": [],
+      "citations": ["https://github.com/ICME-Lab/kinic-context-engine/blob/main/skills/nextjs/migration/SKILL.md"],
+      "retrieved_at": "2026-03-18T00:00:00Z"
+    },
+    "memory_targets": {
+      "staging_canister_ids": [],
+      "prod_canister_ids": []
+    },
+    "cadence": "daily",
+    "version_strategy": "none",
+    "extraction_hints": {
+      "content_roots": ["article", "main"],
+      "drop_selectors": ["nav", "header", "footer", "aside"],
+      "chunk_target_chars": 900
+    },
+    "smoke_queries": {
+      "resolve": "next migration",
+      "query": "upgrade checklist",
+      "pack": "next migration auth changes"
+    }
+  }
+]

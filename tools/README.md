@@ -15,6 +15,7 @@ This folder defines:
 - the canonical payload schema for source chunks
 - the build / validate / ingest workflow
 - the expected future helper tool names
+- the `source_ops/` automation entrypoints for collection, diffing, apply, and smoke
 
 This folder does not add a new ingest CLI. Use existing `kinic-cli` or `kinic-py` to write into memory instances.
 
