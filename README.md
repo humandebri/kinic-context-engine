@@ -44,13 +44,15 @@ icp network start -d
 icp deploy catalog_canister
 ```
 
-catalog canister ID は `.icp/data/mappings/<environment>.ids.json` の `catalog_canister` から取得します。
+local の catalog canister ID は `.icp/cache/mappings/local.ids.json` の `catalog_canister` から取得できます。
 
 ```bash
-export KINIC_CONTEXT_CATALOG_CANISTER_ID="$(jq -r '.catalog_canister' .icp/data/mappings/local.ids.json)"
+export KINIC_CONTEXT_CATALOG_CANISTER_ID="$(jq -r '.catalog_canister' .icp/cache/mappings/local.ids.json)"
+export KINIC_CONTEXT_IC_HOST=http://127.0.0.1:8000
+export KINIC_CONTEXT_FETCH_ROOT_KEY=true
 ```
 
-memory instance を結びつけるには controller で `admin_upsert_source` または `admin_replace_catalog` を呼びます。
+`catalog_canister` だけを deploy しても `pack` は成功しません。各 source に少なくとも 1 つの `memory instance canister` を結びつける必要があります。controller で `admin_upsert_source` または `admin_replace_catalog` を呼んで `canister_ids` を更新してください。
 
 ```bash
 icp canister call -e local catalog_canister admin_upsert_source \
@@ -91,6 +93,7 @@ kinic-context-cli pack "next migration auth changes" --include-skills
 - required:
   - `KINIC_CONTEXT_CATALOG_CANISTER_ID`
   - `KINIC_CONTEXT_IC_HOST` if not using `https://ic0.app`
+  - `KINIC_CONTEXT_FETCH_ROOT_KEY=true` when targeting a local replica
   - `KINIC_CONTEXT_LAUNCHER_CANISTER_ID` for launcher verification
 - run:
 

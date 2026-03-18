@@ -37,7 +37,8 @@ SQLite runtime は `wasm32-wasip1 + wasi2ic` 前提です。事前に `wasi2ic` 
 ## Seed data
 
 - 既定の builtin source は migration + seed で投入されます
-- seed の雛形は [`catalog.seed.json`](/Users/0xhude/Desktop/work/KINIC%20Context%20Engine/tools/catalog_canister/catalog.seed.json) にあります
+- seed の雛形は `tools/catalog_canister/catalog.seed.json` にあります
+- seed の builtin source は `canister_ids` を空で入れるため、そのままでは `pack` は成功しません
 - 実運用では controller で `admin_upsert_source` か `admin_replace_catalog` を使って `canister_ids` を更新します
 
 ## CLI integration
@@ -45,7 +46,9 @@ SQLite runtime は `wasm32-wasip1 + wasi2ic` 前提です。事前に `wasi2ic` 
 deploy 後は catalog canister ID を CLI に渡します。
 
 ```bash
-export KINIC_CONTEXT_CATALOG_CANISTER_ID="$(jq -r '.catalog_canister' .icp/data/mappings/local.ids.json)"
+export KINIC_CONTEXT_CATALOG_CANISTER_ID="$(jq -r '.catalog_canister' .icp/cache/mappings/local.ids.json)"
+export KINIC_CONTEXT_IC_HOST=http://127.0.0.1:8000
+export KINIC_CONTEXT_FETCH_ROOT_KEY=true
 ```
 
 ## Admin update
