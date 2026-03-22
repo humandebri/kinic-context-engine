@@ -3,6 +3,9 @@ vendor/
 .icp/cache/
 __pycache__/
 *.pyc
+.env
+.env.*
+*.local
 tools/source_ops/artifacts/raw/
 tools/source_ops/artifacts/normalized/
 tools/source_ops/artifacts/reports/
