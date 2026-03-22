@@ -1,6 +1,22 @@
-# kinic-context-cli
+# KINIC Context Engine
 
-Read-only Rust CLI for source resolution, retrieval, and evidence pack generation on top of a catalog canister and existing KINIC memory instances.
+Read-only Rust workspace for source resolution, retrieval, and evidence pack generation on top of a catalog canister and existing KINIC memory instances.
+
+The main user-facing binary is `kinic-context-cli`.
+
+## What This Repo Contains
+
+- `kinic-context-cli`: read-only CLI for resolving sources, querying memory instances, and generating evidence packs
+- `crates/kinic_context_core`: shared client, engine, config, and type logic
+- `tools/catalog_canister`: catalog canister that stores source metadata and resolution indices
+- `tools/pocket_ic_tests`: PocketIC integration coverage for catalog and CLI flows
+
+## Quick Start
+
+```bash
+cargo build
+cargo run -- resolve "next middleware"
+```
 
 ## Status
 
