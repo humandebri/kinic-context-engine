@@ -2,7 +2,7 @@
 
 ## Objective
 
-Populate source-specific memory instances with canonical JSON payloads so that the read-only CLI can produce stable evidence packs and citations.
+Populate source-specific source/memory canisters with canonical JSON payloads so that the read-only CLI can produce stable evidence packs and citations.
 
 The ingest flow is intentionally external to `kinic-context-cli`.
 
@@ -11,7 +11,7 @@ The ingest flow is intentionally external to `kinic-context-cli`.
 The operational model is fixed for v1:
 
 - one logical source ID
-- one dedicated memory instance canister
+- one dedicated source/memory canister
 - one consistent payload schema
 
 v1 source set:
@@ -19,7 +19,6 @@ v1 source set:
 - `/vercel/next.js`
 - `/supabase/docs`
 - `/react/docs`
-- `/skills/nextjs/migration`
 
 The runtime mapping is provided by the catalog canister.
 
@@ -50,7 +49,6 @@ Responsibilities:
 - preserve canonical `citation`
 - attach `version`
 - include full `content` when available
-- for skill sources, summarize decision rules in `snippet`
 
 ### 2. Validate
 
@@ -74,7 +72,6 @@ Validation checks:
 - `source_id` matches target source
 - `version` exists for v1 sources
 - optional `content`, `section`, `tags`, `retrieved_at` are type-correct if present
-- skill sources may omit `version`
 
 Failure policy:
 
@@ -86,11 +83,11 @@ Failure policy:
 Input:
 
 - validated payload collection
-- target memory instance canister ID
+- target source/memory canister ID
 
 Output:
 
-- payloads written to the existing memory instance
+- section summaries and payloads written to the existing source/memory canister
 
 Planned helper name:
 
@@ -110,6 +107,13 @@ No new write CLI is introduced in this repo.
 - write one canonical JSON object as the stored text payload
 - do not flatten to plain text before insert
 - the searchable text should remain part of the JSON, typically through `snippet` and `content`
+
+### Section summary behavior
+
+- group payloads by `section` and `version`
+- derive one section summary per group before document inserts
+- call `insert_section` before `insert_document`
+- use the same embedding model and prefix rule as document indexing
 
 ### Tagging
 
@@ -135,17 +139,11 @@ Examples:
 
 - do not insert `/supabase/docs` payloads into the `/vercel/next.js` instance
 - do not insert unversioned chunks into versioned source instances unless the source truly has no version semantics
-- for skill sources, set catalog `domain` to `skill_knowledge`
 
 ### Citation quality
 
 - page-level URLs are acceptable for v1
 - section/deep-link URLs are preferred
-- skill payloads should cite the canonical repo URL for the skill origin, not an ad hoc temporary note
-
-Recommended skill citation example:
-
-- `https://github.com/<org>/<repo>/blob/<ref>/skills/<skill-name>/SKILL.md`
 
 ## Expected Future Tool Behavior
 
@@ -161,6 +159,6 @@ When implemented, helper tools should:
 The source ingest setup is considered ready when:
 
 - a source payload batch passes validation
-- the batch is inserted into the intended memory instance
+- the batch is inserted into the intended source/memory canister
 - `kinic-context-cli query <source_id> ...` returns stable `title`, `citation`, and `version`
 - `pack` can merge multiple sources without falling back to `memory://<source_id>` for curated payloads

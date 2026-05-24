@@ -28,8 +28,10 @@ def _vec_text(values: list[str]) -> str:
     return "vec {" + "; ".join(_candid_text(value) for value in values) + "}"
 
 
-def _opt_text(value: str | None) -> str:
-    return "null" if value is None else f"opt {_candid_text(value)}"
+def _opt_text(value: object) -> str:
+    if value:
+        return f"opt {_candid_text(str(value))}"
+    return "null"
 
 
 def build_upsert_args(source: dict[str, object], environment: str) -> str:

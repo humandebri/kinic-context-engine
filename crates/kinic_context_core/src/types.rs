@@ -2,6 +2,10 @@
 // What: Shared source catalog metadata and retrieval snippet wire types.
 // Why: Use one canonical shape across catalog canisters, Candid decoding, and CLI JSON output.
 use candid::CandidType;
+pub use kinic_retrieval_types::{
+    HybridQueryFilters, HybridQueryRequest, HybridSearchResult, IndexedDocument,
+    SectionIndexRecord, VectorSearchResult,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize, CandidType, PartialEq, Eq)]

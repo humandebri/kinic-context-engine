@@ -2,7 +2,7 @@
   {
     "source_id": "/vercel/next.js",
     "title": "Next.js Docs",
-    "aliases": ["next", "nextjs", "next.js", "middleware"],
+    "aliases": ["next", "nextjs", "next.js", "middleware", "next migration", "nextjs migration"],
     "trust": "official",
     "domain": "code_docs",
     "skill_kind": null,
@@ -11,7 +11,7 @@
     "canister_ids": [],
     "supported_versions": ["14", "15"],
     "retrieved_at": "2026-03-17T00:00:00Z",
-    "citations": ["https://nextjs.org/docs"]
+    "citations": ["https://nextjs.org/docs", "https://nextjs.org/docs/app/building-your-application/upgrading"]
   },
   {
     "source_id": "/supabase/docs",
@@ -40,19 +40,5 @@
     "supported_versions": ["19"],
     "retrieved_at": "2026-03-17T00:00:00Z",
     "citations": ["https://react.dev"]
-  },
-  {
-    "source_id": "/skills/nextjs/migration",
-    "title": "Next.js Migration Skill",
-    "aliases": ["next migration", "nextjs migration", "upgrade"],
-    "trust": "curated",
-    "domain": "skill_knowledge",
-    "skill_kind": "migration",
-    "targets": ["nextjs"],
-    "capabilities": ["auth", "middleware", "routing"],
-    "canister_ids": [],
-    "supported_versions": [],
-    "retrieved_at": "2026-03-17T00:00:00Z",
-    "citations": ["https://github.com/ICME-Lab/kinic-context-engine/blob/main/skills/nextjs/migration/SKILL.md"]
   }
 ]

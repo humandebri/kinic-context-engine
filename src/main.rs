@@ -23,11 +23,7 @@ async fn main() -> Result<()> {
         other => {
             let engine = load_engine().await?;
             match other {
-                Command::Resolve(args) => {
-                    engine
-                        .resolve(&args.query, args.max_sources, args.include_skills)
-                        .await?
-                }
+                Command::Resolve(args) => engine.resolve(&args.query, args.max_sources).await?,
                 Command::Query(args) => {
                     engine
                         .query(
@@ -40,24 +36,18 @@ async fn main() -> Result<()> {
                 }
                 Command::Pack(args) => {
                     engine
-                        .pack(
-                            &args.query,
-                            args.max_sources,
-                            args.max_tokens,
-                            args.include_skills,
-                        )
+                        .pack(&args.query, args.max_sources, args.max_tokens)
                         .await?
                 }
-                Command::ListSources(args) => engine.list_sources(args.include_skills).await?,
+                Command::ListSources(_) => engine.list_sources().await?,
                 Command::FilterSources(args) => {
-                    let include_skills = args.include_skills;
                     engine
                         .filter_sources(FilterSourcesArgs {
                             domain: args.domain,
                             trust: args.trust,
                             version: args.version,
                             limit: args.limit,
-                        }, include_skills)
+                        })
                         .await?
                 }
                 Command::Cite(_) => unreachable!("handled above"),

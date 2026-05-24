@@ -2,10 +2,10 @@
 
 Catalog-only canister for `kinic-context-cli`.
 
-- storage: `ic-rusqlite`
-- migrations: `ic-sql-migrate`
+- storage: `ic-sqlite-vfs` on stable memory, fixed `MemoryId::new(120)`
+- migrations: `ic_sqlite_vfs::db::migrate::Migration`
+- wasm target: `wasm32-unknown-unknown`
 - purpose: map source logical IDs such as `/vercel/next.js` to source metadata and backing memory instance canister IDs
-- skill sources can carry structured metadata such as `skill_kind`, `targets`, and `capabilities`
 - non-goal: chunk storage or retrieval RAG
 
 ## Read API
@@ -31,7 +31,7 @@ icp network start -d
 icp deploy catalog_canister
 ```
 
-SQLite runtime は `wasm32-wasip1 + wasi2ic` 前提です。事前に `wasi2ic` を入れてください。
+SQLite runtime は `ic-sqlite-vfs` 前提で、`wasm32-unknown-unknown` へ直接 build します。
 `candid:service` metadata は `ic-wasm` で `tools/catalog_canister/catalog_canister.did` から埋め込みます。
 
 ## Seed data

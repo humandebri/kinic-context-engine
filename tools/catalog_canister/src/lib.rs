@@ -5,28 +5,34 @@ use std::cmp::Ordering;
 
 use ic_cdk::{
     api::{is_controller, msg_caller},
-    init, post_upgrade, pre_upgrade, query, trap, update,
+    init, post_upgrade, query, trap, update,
 };
 use kinic_context_core::types::{
     FilterSourcesArgs, ResolvedCatalogSource, SourceMetadata, SourceUpsert,
 };
-use rusqlite::Transaction;
 
 mod seeds;
 mod sqlite_runtime;
 
-use sqlite_runtime::{Connection, OptionalExtension, close_connection, params, with_connection};
+use sqlite_runtime::{
+    Connection, Migration, execute, load_source_base, load_source_ids, migrate, params, with_query,
+    with_update,
+};
 
-static MIGRATIONS: &[ic_sql_migrate::Migration] = ic_sql_migrate::include_migrations!();
+const MIGRATIONS: &[Migration] = &[
+    Migration {
+        version: 0,
+        sql: include_str!("../migrations/000_initial.sql"),
+    },
+    Migration {
+        version: 1,
+        sql: include_str!("../migrations/001_skill_metadata.sql"),
+    },
+];
 
 #[init]
 fn init() {
     run_migrations_and_seeds();
-}
-
-#[pre_upgrade]
-fn pre_upgrade() {
-    close_connection();
 }
 
 #[post_upgrade]
@@ -36,12 +42,12 @@ fn post_upgrade() {
 
 #[query]
 fn list_sources() -> Vec<SourceMetadata> {
-    with_connection(|conn| load_all_sources(&conn)).unwrap_or_else(|error| trap(&error))
+    with_query(load_all_sources).unwrap_or_else(|error| trap(&error))
 }
 
 #[query]
 fn get_source(source_id: String) -> Option<SourceMetadata> {
-    with_connection(|conn| load_source(&conn, &source_id)).unwrap_or_else(|error| trap(&error))
+    with_query(|conn| load_source(conn, &source_id)).unwrap_or_else(|error| trap(&error))
 }
 
 #[query]
@@ -120,31 +126,23 @@ fn filter_sources(args: FilterSourcesArgs) -> Vec<SourceMetadata> {
 #[update]
 fn admin_upsert_source(source: SourceUpsert) {
     ensure_controller();
-    with_connection(|mut conn| upsert_source(&mut conn, &source))
-        .unwrap_or_else(|error| trap(&error));
+    with_update(|conn| upsert_source(conn, &source)).unwrap_or_else(|error| trap(&error));
 }
 
 #[update]
 fn admin_replace_catalog(sources: Vec<SourceUpsert>) {
     ensure_controller();
-    with_connection(|mut conn| {
-        conn.execute("DELETE FROM source_aliases", [])
-            .map_err(|error| error.to_string())?;
-        conn.execute("DELETE FROM source_targets", [])
-            .map_err(|error| error.to_string())?;
-        conn.execute("DELETE FROM source_capabilities", [])
-            .map_err(|error| error.to_string())?;
-        conn.execute("DELETE FROM source_canisters", [])
-            .map_err(|error| error.to_string())?;
-        conn.execute("DELETE FROM source_versions", [])
-            .map_err(|error| error.to_string())?;
-        conn.execute("DELETE FROM source_citations", [])
-            .map_err(|error| error.to_string())?;
-        conn.execute("DELETE FROM sources", [])
-            .map_err(|error| error.to_string())?;
+    with_update(|conn| {
+        execute(conn, "DELETE FROM source_aliases", params![])?;
+        execute(conn, "DELETE FROM source_targets", params![])?;
+        execute(conn, "DELETE FROM source_capabilities", params![])?;
+        execute(conn, "DELETE FROM source_canisters", params![])?;
+        execute(conn, "DELETE FROM source_versions", params![])?;
+        execute(conn, "DELETE FROM source_citations", params![])?;
+        execute(conn, "DELETE FROM sources", params![])?;
 
         for source in &sources {
-            upsert_source(&mut conn, source)?;
+            upsert_source(conn, source)?;
         }
         Ok::<(), String>(())
     })
@@ -152,11 +150,9 @@ fn admin_replace_catalog(sources: Vec<SourceUpsert>) {
 }
 
 fn run_migrations_and_seeds() {
-    with_connection(|mut conn| {
-        let conn: &mut Connection = &mut conn;
-        ic_sql_migrate::sqlite::migrate(conn, MIGRATIONS).expect("catalog migrations must run");
-        ic_sql_migrate::sqlite::seed(conn, seeds::SEEDS).expect("catalog seeds must run");
-    });
+    sqlite_runtime::init_db().expect("catalog database must initialize");
+    migrate(MIGRATIONS).expect("catalog migrations must run");
+    with_update(seed_builtin_sources).expect("catalog seeds must run");
 }
 
 fn ensure_controller() {
@@ -167,16 +163,7 @@ fn ensure_controller() {
 }
 
 fn load_all_sources(conn: &Connection) -> Result<Vec<SourceMetadata>, String> {
-    let mut stmt = conn
-        .prepare("SELECT source_id FROM sources ORDER BY source_id")
-        .map_err(|error| error.to_string())?;
-    let source_ids = stmt
-        .query_map([], |row| row.get::<_, String>(0))
-        .map_err(|error| error.to_string())?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|error| error.to_string())?;
-
-    source_ids
+    load_source_ids(conn)?
         .into_iter()
         .map(|source_id| {
             load_source(conn, &source_id)?
@@ -186,32 +173,16 @@ fn load_all_sources(conn: &Connection) -> Result<Vec<SourceMetadata>, String> {
 }
 
 fn load_source(conn: &Connection, source_id: &str) -> Result<Option<SourceMetadata>, String> {
-    let row = conn
-        .query_row(
-            "SELECT source_id, title, trust, domain, skill_kind, retrieved_at FROM sources WHERE source_id = ?1",
-            params![source_id],
-            |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, String>(2)?,
-                    row.get::<_, String>(3)?,
-                    row.get::<_, Option<String>>(4)?,
-                    row.get::<_, String>(5)?,
-                ))
-            },
-        )
-        .optional()
-        .map_err(|error| error.to_string())?;
+    let row = load_source_base(conn, source_id)?;
 
     row.map(|(source_id, title, trust, domain, skill_kind, retrieved_at)| {
         Ok(SourceMetadata {
-            aliases: collect_values(conn, "SELECT alias FROM source_aliases WHERE source_id = ?1 ORDER BY alias", &source_id)?,
-            targets: collect_values(conn, "SELECT target FROM source_targets WHERE source_id = ?1 ORDER BY target", &source_id)?,
-            capabilities: collect_values(conn, "SELECT capability FROM source_capabilities WHERE source_id = ?1 ORDER BY capability", &source_id)?,
-            canister_ids: collect_values(conn, "SELECT canister_id FROM source_canisters WHERE source_id = ?1 ORDER BY canister_id", &source_id)?,
-            supported_versions: collect_values(conn, "SELECT version FROM source_versions WHERE source_id = ?1 ORDER BY version", &source_id)?,
-            citations: collect_values(conn, "SELECT citation FROM source_citations WHERE source_id = ?1 ORDER BY citation", &source_id)?,
+            aliases: sqlite_runtime::collect_values(conn, "SELECT alias FROM source_aliases WHERE source_id = ?1 ORDER BY alias", &source_id)?,
+            targets: sqlite_runtime::collect_values(conn, "SELECT target FROM source_targets WHERE source_id = ?1 ORDER BY target", &source_id)?,
+            capabilities: sqlite_runtime::collect_values(conn, "SELECT capability FROM source_capabilities WHERE source_id = ?1 ORDER BY capability", &source_id)?,
+            canister_ids: sqlite_runtime::collect_values(conn, "SELECT canister_id FROM source_canisters WHERE source_id = ?1 ORDER BY canister_id", &source_id)?,
+            supported_versions: sqlite_runtime::collect_values(conn, "SELECT version FROM source_versions WHERE source_id = ?1 ORDER BY version", &source_id)?,
+            citations: sqlite_runtime::collect_values(conn, "SELECT citation FROM source_citations WHERE source_id = ?1 ORDER BY citation", &source_id)?,
             source_id,
             title,
             trust,
@@ -223,17 +194,10 @@ fn load_source(conn: &Connection, source_id: &str) -> Result<Option<SourceMetada
     .transpose()
 }
 
-fn collect_values(conn: &Connection, sql: &str, source_id: &str) -> Result<Vec<String>, String> {
-    let mut stmt = conn.prepare(sql).map_err(|error| error.to_string())?;
-    stmt.query_map(params![source_id], |row| row.get::<_, String>(0))
-        .map_err(|error| error.to_string())?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|error| error.to_string())
-}
-
-fn upsert_source(conn: &mut Connection, source: &SourceUpsert) -> Result<(), String> {
-    let tx = conn.transaction().map_err(|error| error.to_string())?;
-    tx.execute(
+fn upsert_source(conn: &Connection, source: &SourceUpsert) -> Result<(), String> {
+    let skill_kind = source.skill_kind.clone().unwrap_or_default();
+    execute(
+        conn,
         "INSERT INTO sources (source_id, title, domain, trust, skill_kind, retrieved_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6)
          ON CONFLICT(source_id) DO UPDATE SET
@@ -243,66 +207,133 @@ fn upsert_source(conn: &mut Connection, source: &SourceUpsert) -> Result<(), Str
              skill_kind = excluded.skill_kind,
              retrieved_at = excluded.retrieved_at",
         params![
-            &source.source_id,
-            &source.title,
-            &source.domain,
-            &source.trust,
-            &source.skill_kind,
-            &source.retrieved_at
+            source.source_id.clone(),
+            source.title.clone(),
+            source.domain.clone(),
+            source.trust.clone(),
+            skill_kind,
+            source.retrieved_at.clone()
         ],
-    )
-    .map_err(|error| error.to_string())?;
-    replace_values(&tx, "source_aliases", "alias", &source.source_id, &source.aliases)?;
-    replace_values(&tx, "source_targets", "target", &source.source_id, &source.targets)?;
+    )?;
     replace_values(
-        &tx,
+        conn,
+        "source_aliases",
+        "alias",
+        &source.source_id,
+        &source.aliases,
+    )?;
+    replace_values(
+        conn,
+        "source_targets",
+        "target",
+        &source.source_id,
+        &source.targets,
+    )?;
+    replace_values(
+        conn,
         "source_capabilities",
         "capability",
         &source.source_id,
         &source.capabilities,
     )?;
     replace_values(
-        &tx,
+        conn,
         "source_canisters",
         "canister_id",
         &source.source_id,
         &source.canister_ids,
     )?;
     replace_values(
-        &tx,
+        conn,
         "source_versions",
         "version",
         &source.source_id,
         &source.supported_versions,
     )?;
     replace_values(
-        &tx,
+        conn,
         "source_citations",
         "citation",
         &source.source_id,
         &source.citations,
     )?;
-    tx.commit().map_err(|error| error.to_string())
+    Ok(())
 }
 
 fn replace_values(
-    tx: &Transaction<'_>,
+    conn: &Connection,
     table: &str,
     column: &str,
     source_id: &str,
     values: &[String],
 ) -> Result<(), String> {
-    tx.execute(
+    execute(
+        conn,
         &format!("DELETE FROM {table} WHERE source_id = ?1"),
         params![source_id],
-    )
-    .map_err(|error| error.to_string())?;
+    )?;
     for value in values {
-        tx.execute(
+        execute(
+            conn,
             &format!("INSERT INTO {table} (source_id, {column}) VALUES (?1, ?2)"),
-            params![source_id, value],
-        )
-        .map_err(|error| error.to_string())?;
+            params![source_id.to_string(), value.clone()],
+        )?;
+    }
+    Ok(())
+}
+
+fn seed_builtin_sources(conn: &Connection) -> Result<(), String> {
+    for source in seeds::seed_001_builtin_sources::builtin_sources() {
+        let source_id = source.source_id.clone();
+        execute(
+            conn,
+            "INSERT OR IGNORE INTO sources (source_id, title, domain, trust, skill_kind, retrieved_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                source.source_id.clone(),
+                source.title.clone(),
+                source.domain.clone(),
+                source.trust.clone(),
+                source.skill_kind.clone().unwrap_or_default(),
+                source.retrieved_at.clone()
+            ],
+        )?;
+
+        for alias in source.aliases {
+            execute(
+                conn,
+                "INSERT OR IGNORE INTO source_aliases (source_id, alias) VALUES (?1, ?2)",
+                params![source_id.clone(), alias],
+            )?;
+        }
+        for version in source.supported_versions {
+            execute(
+                conn,
+                "INSERT OR IGNORE INTO source_versions (source_id, version) VALUES (?1, ?2)",
+                params![source_id.clone(), version],
+            )?;
+        }
+        for target in source.targets {
+            execute(
+                conn,
+                "INSERT OR IGNORE INTO source_targets (source_id, target) VALUES (?1, ?2)",
+                params![source_id.clone(), target],
+            )?;
+        }
+        for capability in source.capabilities {
+            execute(
+                conn,
+                "INSERT OR IGNORE INTO source_capabilities (source_id, capability) VALUES (?1, ?2)",
+                params![source_id.clone(), capability],
+            )?;
+        }
+        for citation in source.citations {
+            execute(
+                conn,
+                "INSERT OR IGNORE INTO source_citations (source_id, citation) VALUES (?1, ?2)",
+                params![source_id.clone(), citation],
+            )?;
+        }
     }
     Ok(())
 }
@@ -335,14 +366,14 @@ mod tests {
         LOCK.get_or_init(|| Mutex::new(()))
     }
 
-    fn reset_catalog(conn: &mut Connection) {
-        conn.execute("DELETE FROM source_aliases", []).unwrap();
-        conn.execute("DELETE FROM source_targets", []).unwrap();
-        conn.execute("DELETE FROM source_capabilities", []).unwrap();
-        conn.execute("DELETE FROM source_canisters", []).unwrap();
-        conn.execute("DELETE FROM source_versions", []).unwrap();
-        conn.execute("DELETE FROM source_citations", []).unwrap();
-        conn.execute("DELETE FROM sources", []).unwrap();
+    fn reset_catalog(conn: &Connection) {
+        execute(conn, "DELETE FROM source_aliases", params![]).unwrap();
+        execute(conn, "DELETE FROM source_targets", params![]).unwrap();
+        execute(conn, "DELETE FROM source_capabilities", params![]).unwrap();
+        execute(conn, "DELETE FROM source_canisters", params![]).unwrap();
+        execute(conn, "DELETE FROM source_versions", params![]).unwrap();
+        execute(conn, "DELETE FROM source_citations", params![]).unwrap();
+        execute(conn, "DELETE FROM sources", params![]).unwrap();
     }
 
     fn sample_source() -> SourceUpsert {
@@ -388,43 +419,59 @@ mod tests {
 
     #[test]
     fn get_source_returns_inserted_canisters() {
-        let _guard = test_lock().lock().unwrap_or_else(|error| error.into_inner());
+        let _guard = test_lock()
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
         run_migrations_and_seeds();
-        with_connection(|mut conn| {
-            reset_catalog(&mut conn);
-            upsert_source(&mut conn, &sample_source()).unwrap();
+        with_update(|conn| {
+            reset_catalog(conn);
+            upsert_source(conn, &sample_source()).unwrap();
+            Ok(())
+        })
+        .unwrap();
 
-            let source = load_source(&conn, "/vercel/next.js")
+        with_query(|conn| {
+            let source = load_source(conn, "/vercel/next.js")
                 .unwrap()
                 .expect("source must exist");
             assert_eq!(source.canister_ids.len(), 2);
             assert!(source.skill_kind.is_none());
-        });
-        close_connection();
+            Ok(())
+        })
+        .unwrap();
+        sqlite_runtime::close_connection();
     }
 
     #[test]
     fn resolve_sources_matches_aliases() {
-        let _guard = test_lock().lock().unwrap_or_else(|error| error.into_inner());
+        let _guard = test_lock()
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
         run_migrations_and_seeds();
-        with_connection(|mut conn| {
-            reset_catalog(&mut conn);
-            upsert_source(&mut conn, &sample_source()).unwrap();
-        });
+        with_update(|conn| {
+            reset_catalog(conn);
+            upsert_source(conn, &sample_source()).unwrap();
+            Ok(())
+        })
+        .unwrap();
 
         let results = resolve_sources("next middleware".to_string(), 5);
         assert_eq!(results[0].source_id, "/vercel/next.js");
-        close_connection();
+        sqlite_runtime::close_connection();
     }
 
     #[test]
     fn filter_sources_filters_by_domain_and_version() {
-        let _guard = test_lock().lock().unwrap_or_else(|error| error.into_inner());
+        let _guard = test_lock()
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
         run_migrations_and_seeds();
-        with_connection(|mut conn| {
-            reset_catalog(&mut conn);
-            upsert_source(&mut conn, &sample_source()).unwrap();
-        });
+        with_update(|conn| {
+            reset_catalog(conn);
+            upsert_source(conn, &sample_source()).unwrap();
+            Ok(())
+        })
+        .unwrap();
 
         let filtered = filter_sources(FilterSourcesArgs {
             domain: Some("code_docs".to_string()),
@@ -434,18 +481,24 @@ mod tests {
         });
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].source_id, "/vercel/next.js");
-        close_connection();
+        sqlite_runtime::close_connection();
     }
 
     #[test]
     fn get_source_returns_skill_metadata() {
-        let _guard = test_lock().lock().unwrap_or_else(|error| error.into_inner());
+        let _guard = test_lock()
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
         run_migrations_and_seeds();
-        with_connection(|mut conn| {
-            reset_catalog(&mut conn);
-            upsert_source(&mut conn, &sample_skill_source()).unwrap();
+        with_update(|conn| {
+            reset_catalog(conn);
+            upsert_source(conn, &sample_skill_source()).unwrap();
+            Ok(())
+        })
+        .unwrap();
 
-            let source = load_source(&conn, "/skills/nextjs/migration")
+        with_query(|conn| {
+            let source = load_source(conn, "/skills/nextjs/migration")
                 .unwrap()
                 .expect("skill source must exist");
             assert_eq!(source.skill_kind.as_deref(), Some("migration"));
@@ -458,7 +511,30 @@ mod tests {
                     "routing".to_string()
                 ]
             );
-        });
-        close_connection();
+            Ok(())
+        })
+        .unwrap();
+        sqlite_runtime::close_connection();
+    }
+
+    #[test]
+    fn rerunning_migrations_keeps_skill_sources() {
+        let _guard = test_lock()
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        run_migrations_and_seeds();
+        with_update(|conn| {
+            reset_catalog(conn);
+            upsert_source(conn, &sample_skill_source()).unwrap();
+            Ok(())
+        })
+        .unwrap();
+
+        run_migrations_and_seeds();
+
+        let source = get_source("/skills/nextjs/migration".to_string())
+            .expect("skill source should survive migration rerun");
+        assert_eq!(source.skill_kind.as_deref(), Some("migration"));
+        sqlite_runtime::close_connection();
     }
 }

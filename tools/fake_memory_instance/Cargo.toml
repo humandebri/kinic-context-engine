@@ -11,4 +11,14 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 candid = "0.10.20"
-ic-cdk = "0.18.7"
+ic-cdk = "0.20.1"
+kinic_context_core = { path = "../../crates/kinic_context_core" }
+serde_json = "1.0.145"
+tempfile = "3.23.0"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+ic-hybrid-engine = { path = "../../../ic-hybrid-sqlite/crates/ic_hybrid_engine" }
+rusqlite = { version = "0.37.0", features = ["bundled"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+ic-sqlite-vfs = { version = "=0.2.2", default-features = false, features = ["sqlite-precompiled"] }

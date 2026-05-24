@@ -2,17 +2,15 @@
 
 ## Goal
 
-A source-oriented memory instance must store JSON payloads that make `kinic-context-cli` retrieval stable and explainable. The primary consumers are:
+A source-oriented source/memory canister must store JSON payloads that make `kinic-context-cli` retrieval stable and explainable. The primary consumers are:
 
 - `query`
 - `pack`
 - `cite`
 
-The payload format is canonical for source memory instances. Plain text payloads may still be readable by the CLI fallback path, but they are non-standard and should not be used for curated source instances.
+The payload format is canonical for source/memory canisters. Plain text payloads may still be readable by the CLI fallback path, but they are non-standard and should not be used for curated source instances.
 
-The same schema is also used for curated skill knowledge sources such as `/skills/nextjs/migration`.
-
-Catalog-only metadata such as `skill_kind`, `targets`, and `capabilities` is managed separately in the catalog canister and is not duplicated inside the payload JSON.
+The same schema is used for curated docs chunks and migration guidance stored under an ordinary source such as `/vercel/next.js`.
 
 ## Canonical Shape
 
@@ -75,11 +73,13 @@ Catalog-only metadata such as `skill_kind`, `targets`, and `capabilities` is man
 
 - Type: `string`
 - Logical subsection such as `"middleware"` or `"routing"`
+- Retrieval-critical field for keyword candidate narrowing and explainability
 
 ### `tags`
 
 - Type: `array<string>`
 - Search-supporting tags that capture API/domain terms
+- Retrieval-critical field for keyword candidate narrowing and metadata pre-filter
 
 ### `retrieved_at`
 
@@ -93,7 +93,7 @@ Catalog-only metadata such as `skill_kind`, `targets`, and `capabilities` is man
 - Payload must be valid JSON object
 - `source_id`, `title`, `snippet`, and `citation` must exist and be non-empty
 - `citation` must begin with `http://` or `https://`
-- `source_id` must match the target memory instance's logical source assignment
+- `source_id` must match the target source/memory canister's logical source assignment
 
 ### Version Rules
 
@@ -103,8 +103,6 @@ For these v1 sources, `version` should be treated as required:
 - `/supabase/docs`
 - `/react/docs`
 
-Skill sources under `/skills/...` do not require `version` in v1.
-
 If a source has no meaningful version semantics in the future, `version` may be omitted, but that should be documented in the ingest spec before use.
 
 ### Content Rules
@@ -112,26 +110,19 @@ If a source has no meaningful version semantics in the future, `version` may be 
 - `snippet` should not be identical to `content` when `content` is large
 - `title` should be concise and section-specific
 - `tags` should remain short and domain-relevant
+- `section` and `tags` should be populated for curated docs chunks because the hybrid retrieval path uses them before vector scoring
 
 ## Source Semantics
 
-Each source memory instance is single-purpose:
+Each source/memory canister is single-purpose:
 
 - one logical source ID
-- one memory instance canister
+- one source/memory canister
 - one consistent payload schema
 
-Do not mix multiple `source_id` values in a single source memory instance.
+Do not mix multiple `source_id` values in a single source/memory canister.
 
-For skill sources:
-
-- use `domain = skill_knowledge` in the catalog
-- keep `citation` pointed at the canonical repo URL for the skill origin
-- prefer `snippet` for concise rules and `content` for the fuller skill guidance
-
-Recommended skill citation shape:
-
-- `https://github.com/<org>/<repo>/blob/<ref>/skills/<skill-name>/SKILL.md`
+Curated migration guidance should stay under the owning docs source and cite the canonical docs page for the guidance.
 
 ## Compatibility With Current CLI
 

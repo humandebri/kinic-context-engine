@@ -41,13 +41,40 @@ pub struct Warning {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct PackResolvedSource {
+    pub source_id: String,
+    pub title: String,
+    pub score: f32,
+    pub reasons: Vec<String>,
+    pub queried: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PackMetrics {
+    pub resolved_sources_count: usize,
+    pub queried_canisters_count: usize,
+    pub returned_snippets_count: usize,
+    pub selected_evidence_count: usize,
+    pub estimated_pack_tokens: usize,
+    pub empty_source_count: usize,
+    pub source_error_count: usize,
+    pub resolve_ms: u64,
+    pub query_ms_total: u64,
+    pub pack_ms_total: u64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct EvidencePack {
     pub query: String,
     pub resolved_sources: Vec<String>,
+    #[serde(default)]
+    pub resolved_source_details: Vec<PackResolvedSource>,
     pub evidence: Vec<SourceSnippet>,
     pub warnings: Vec<Warning>,
     pub pack_summary: String,
     pub token_budget: usize,
+    #[serde(default)]
+    pub metrics: Option<PackMetrics>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]

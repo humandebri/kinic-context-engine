@@ -21,9 +21,14 @@
 
 ## Apply mode
 
-- memory 更新は既定で `tools/source_ops/kinic_writer.py` を使い、`reset -> exact payload insert` を行います
+- memory 更新は既定で `tools/source_ops/kinic_writer.py` を使い、`reset -> insert_section* -> insert_document*` を行います
 - 必要なら `SOURCE_OPS_MEMORY_WRITER_TEMPLATE` / `SOURCE_OPS_MEMORY_ROLLBACK_TEMPLATE` で上書きできます
-- exact payload insert では payload JSON 自体を memory に保存し、embedding は `EMBEDDING_API_ENDPOINT/embedding` から取得します
+- exact payload insert では payload JSON 自体を memory に保存し、section summary は payload から自動集約します
+- embedding 入力は既定で `query: ` / `passage: ` prefix 規約を共有します
+- local embedding mode は `tools/source_ops/embedding.py` から `target/debug/kinic-embed` を呼びます
+- 先に `cargo build --bin kinic-embed` を実行してください
+- モデルは `.local/models/multilingual-e5-large` か `KINIC_CONTEXT_EMBEDDING_MODEL_DIR` に事前配置してください
+- 配置確認には `bash scripts/setup_local_embedding.sh` を使います
 - catalog 更新は `icp canister call ... admin_upsert_source` を使います
 - prod 昇格は staging 成功後のみです
 

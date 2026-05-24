@@ -11,7 +11,7 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
-from tools.source_ops import apply_catalog, diff, kinic_writer, normalize, registry, run_refresh, smoke, validate
+from tools.source_ops import apply_catalog, diff, embedding, kinic_writer, normalize, registry, run_refresh, smoke, validate
 from tools.source_ops.common import dump_json, write_text
 from tools.source_ops.config import load_settings
 
@@ -72,9 +72,6 @@ class SourceOpsTests(unittest.TestCase):
                 "aliases": ["next", "middleware"],
                 "domain": "code_docs",
                 "trust": "official",
-                "skill_kind": None,
-                "targets": [],
-                "capabilities": [],
                 "supported_versions": ["15"],
                 "citations": ["https://nextjs.org/docs"],
                 "retrieved_at": "2026-03-18T00:00:00Z",
@@ -230,6 +227,9 @@ class SourceOpsTests(unittest.TestCase):
         source = self._source()
         payload = apply_catalog.build_upsert_args(source, "staging")
         self.assertIn('source_id = "/vercel/next.js"', payload)
+        self.assertIn("skill_kind = null", payload)
+        self.assertIn("targets = vec {}", payload)
+        self.assertIn("capabilities = vec {}", payload)
         self.assertIn('canister_ids = vec {"aaaaa-aa"}', payload)
 
     def test_kinic_writer_builds_embedding_text_and_insert_args(self) -> None:
@@ -237,12 +237,24 @@ class SourceOpsTests(unittest.TestCase):
             "title": "Next.js Middleware",
             "snippet": "Use middleware to inspect cookies.",
             "content": "Full chunk text",
+            "section": "middleware",
+            "version": "15",
+            "citation": "https://nextjs.org/docs/middleware",
         }
-        text = kinic_writer.embedding_input_text(payload)
+        text = embedding.document_input_text(payload)
         self.assertIn("Next.js Middleware", text)
+        self.assertTrue(text.startswith("passage: "))
         args = kinic_writer._format_insert_args(payload, [0.1, 0.2])
         self.assertIn("float32", args)
-        self.assertIn('\\"title\\"', args)
+        self.assertIn('title = "Next.js Middleware"', args)
+        self.assertIn("tags = vec", args)
+        sections = kinic_writer.build_sections([payload])
+        self.assertEqual(sections[0]["section_id"], "middleware")
+        section_text = embedding.section_input_text("middleware", "Middleware", "Use middleware.")
+        self.assertTrue(section_text.startswith("passage: "))
+        section_args = kinic_writer._format_insert_section_args(sections[0], [0.3, 0.4])
+        self.assertIn("section_id", section_args)
+        self.assertIn("opt \"15\"", section_args)
 
     def test_smoke_uses_cli_contract(self) -> None:
         source = self._source()

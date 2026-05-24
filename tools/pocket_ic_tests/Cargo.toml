@@ -10,8 +10,10 @@ description = "PocketIC integration tests for the KINIC context runtime."
 anyhow = "1.0.100"
 assert_cmd = "2.0.17"
 candid = "0.10.20"
+fake_memory_instance = { path = "../fake_memory_instance" }
 kinic-context-cli = { path = "../.." }
 kinic_context_core = { path = "../../crates/kinic_context_core" }
-pocket-ic = "12.0.0"
+pocket-ic = "11.0.0"
 serde_json = "1.0.145"
+serial_test = "3.2.0"
 tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }

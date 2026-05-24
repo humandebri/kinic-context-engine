@@ -39,8 +39,13 @@ impl SourceCatalog for MockCatalog {
             .sources
             .values()
             .filter(|source| {
-                args.domain.as_ref().is_none_or(|domain| &source.domain == domain)
-                    && args.trust.as_ref().is_none_or(|trust| &source.trust == trust)
+                args.domain
+                    .as_ref()
+                    .is_none_or(|domain| &source.domain == domain)
+                    && args
+                        .trust
+                        .as_ref()
+                        .is_none_or(|trust| &source.trust == trust)
                     && args.version.as_ref().is_none_or(|version| {
                         source.supported_versions.iter().any(|item| item == version)
                     })
@@ -89,7 +94,12 @@ fn catalog() -> MockCatalog {
             SourceMetadata {
                 source_id: "/vercel/next.js".to_string(),
                 title: "Next.js Docs".to_string(),
-                aliases: vec!["next".to_string(), "middleware".to_string()],
+                aliases: vec![
+                    "next".to_string(),
+                    "middleware".to_string(),
+                    "next migration".to_string(),
+                    "nextjs migration".to_string(),
+                ],
                 trust: "official".to_string(),
                 domain: "code_docs".to_string(),
                 skill_kind: None,
@@ -98,7 +108,10 @@ fn catalog() -> MockCatalog {
                 canister_ids: vec!["aaaaa-aa".to_string(), "bbbbb-bb".to_string()],
                 supported_versions: vec!["14".to_string(), "15".to_string()],
                 retrieved_at: "2026-03-17T00:00:00Z".to_string(),
-                citations: vec!["https://nextjs.org/docs".to_string()],
+                citations: vec![
+                    "https://nextjs.org/docs".to_string(),
+                    "https://nextjs.org/docs/app/building-your-application/upgrading".to_string(),
+                ],
             },
         ),
         (
@@ -135,34 +148,6 @@ fn catalog() -> MockCatalog {
                 citations: vec!["https://react.dev".to_string()],
             },
         ),
-        (
-            "/skills/nextjs/migration".to_string(),
-            SourceMetadata {
-                source_id: "/skills/nextjs/migration".to_string(),
-                title: "Next.js Migration Skill".to_string(),
-                aliases: vec![
-                    "next migration".to_string(),
-                    "nextjs migration".to_string(),
-                    "upgrade".to_string(),
-                ],
-                trust: "curated".to_string(),
-                domain: "skill_knowledge".to_string(),
-                skill_kind: Some("migration".to_string()),
-                targets: vec!["nextjs".to_string()],
-                capabilities: vec![
-                    "auth".to_string(),
-                    "middleware".to_string(),
-                    "routing".to_string(),
-                ],
-                canister_ids: vec!["skill-aa".to_string()],
-                supported_versions: Vec::new(),
-                retrieved_at: "2026-03-17T00:00:00Z".to_string(),
-                citations: vec![
-                    "https://github.com/ICME-Lab/kinic-context-engine/blob/main/skills/nextjs/migration/SKILL.md"
-                        .to_string(),
-                ],
-            },
-        ),
     ]);
     let resolved = vec![
         ResolvedSource {
@@ -184,8 +169,8 @@ fn catalog() -> MockCatalog {
             reasons: vec!["matched code intent".to_string()],
         },
         ResolvedSource {
-            source_id: "/skills/nextjs/migration".to_string(),
-            title: "Next.js Migration Skill".to_string(),
+            source_id: "/vercel/next.js".to_string(),
+            title: "Next.js Docs".to_string(),
             score: 0.8,
             reasons: vec!["matched alias `next migration`".to_string()],
         },
@@ -228,22 +213,6 @@ fn provider() -> MockProvider {
                     score: 1.5,
                 }],
             ),
-            (
-                "/skills/nextjs/migration".to_string(),
-                vec![SourceSnippet {
-                    source_id: "/skills/nextjs/migration".to_string(),
-                    title: "Next.js Migration Skill".to_string(),
-                    snippet: "Prefer official migration guides and verify breaking changes before upgrades."
-                        .to_string(),
-                    citation: "https://github.com/ICME-Lab/kinic-context-engine/blob/main/skills/nextjs/migration/SKILL.md"
-                        .to_string(),
-                    trust: "curated".to_string(),
-                    retrieved_at: "2026-03-17T00:00:00Z".to_string(),
-                    version: None,
-                    stale: false,
-                    score: 1.1,
-                }],
-            ),
             ("/react/docs".to_string(), Vec::new()),
         ]),
         errors: BTreeMap::new(),
@@ -254,7 +223,7 @@ fn provider() -> MockProvider {
 async fn resolve_prefers_nextjs_for_middleware_query() {
     let engine = ContextEngine::new(catalog(), provider());
     let CommandOutput::Resolve(output) = engine
-        .resolve("next.js middleware auth cookies", 5, false)
+        .resolve("next.js middleware auth cookies", 5)
         .await
         .expect("resolve should succeed")
     else {
@@ -262,12 +231,6 @@ async fn resolve_prefers_nextjs_for_middleware_query() {
     };
 
     assert_eq!(output.candidate_sources[0].source_id, "/vercel/next.js");
-    assert!(
-        output
-            .candidate_sources
-            .iter()
-            .all(|item| item.source_id != "/skills/nextjs/migration")
-    );
 }
 
 #[tokio::test]
@@ -291,10 +254,10 @@ async fn query_respects_version_filter() {
 }
 
 #[tokio::test]
-async fn pack_merges_multiple_sources_and_warns_on_empty_source() {
+async fn pack_merges_multiple_sources_and_records_efficiency_metrics() {
     let engine = ContextEngine::new(catalog(), provider());
     let CommandOutput::Pack(output) = engine
-        .pack("protect route in next.js with supabase auth", 3, 3000, false)
+        .pack("protect route in next.js with supabase auth", 3, 3000)
         .await
         .expect("pack should succeed")
     else {
@@ -311,18 +274,21 @@ async fn pack_merges_multiple_sources_and_warns_on_empty_source() {
             .resolved_sources
             .contains(&"/supabase/docs".to_string())
     );
+    assert_eq!(output.resolved_source_details.len(), 4);
     assert!(
         output
-            .warnings
+            .resolved_source_details
             .iter()
-            .any(|warning| warning.kind == "empty_source")
+            .any(|source| source.source_id == "/react/docs" && !source.queried)
     );
-    assert!(
-        output
-            .resolved_sources
-            .iter()
-            .all(|item| item != "/skills/nextjs/migration")
-    );
+    let metrics = output.metrics.expect("pack metrics should exist");
+    assert_eq!(metrics.resolved_sources_count, 4);
+    assert_eq!(metrics.queried_canisters_count, 3);
+    assert_eq!(metrics.returned_snippets_count, 2);
+    assert_eq!(metrics.selected_evidence_count, 2);
+    assert_eq!(metrics.empty_source_count, 0);
+    assert_eq!(metrics.source_error_count, 0);
+    assert!(metrics.estimated_pack_tokens > 0);
 }
 
 #[tokio::test]
@@ -338,7 +304,7 @@ async fn pack_skips_failed_sources_and_records_source_error_warning() {
         },
     );
     let CommandOutput::Pack(output) = engine
-        .pack("protect route in next.js with supabase auth", 3, 3000, false)
+        .pack("protect route in next.js with supabase auth", 3, 3000)
         .await
         .expect("pack should succeed")
     else {
@@ -351,13 +317,9 @@ async fn pack_skips_failed_sources_and_records_source_error_warning() {
             .iter()
             .any(|item| item.source_id == "/vercel/next.js")
     );
-    assert!(
-        output
-            .warnings
-            .iter()
-            .any(|warning| warning.kind == "source_error"
-                && warning.message.contains("/supabase/docs"))
-    );
+    assert!(output.warnings.iter().any(
+        |warning| warning.kind == "source_error" && warning.message.contains("/supabase/docs")
+    ));
 }
 
 #[tokio::test]
@@ -375,9 +337,12 @@ async fn pack_fails_when_all_resolved_sources_fail() {
                     "/supabase/docs".to_string(),
                     "memory search failed".to_string(),
                 ),
-                ("/react/docs".to_string(), "memory search failed".to_string()),
                 (
-                    "/skills/nextjs/migration".to_string(),
+                    "/react/docs".to_string(),
+                    "memory search failed".to_string(),
+                ),
+                (
+                    "/react/docs".to_string(),
                     "memory search failed".to_string(),
                 ),
             ]),
@@ -385,19 +350,17 @@ async fn pack_fails_when_all_resolved_sources_fail() {
     );
 
     let error = engine
-        .pack("protect route in next.js with supabase auth", 3, 3000, false)
+        .pack("protect route in next.js with supabase auth", 3, 3000)
         .await
         .expect_err("pack should fail when every source fails");
-    assert!(error
-        .to_string()
-        .contains("all resolved sources failed"));
+    assert!(error.to_string().contains("all resolved sources failed"));
 }
 
 #[tokio::test]
 async fn pack_respects_token_budget() {
     let engine = ContextEngine::new(catalog(), provider());
     let CommandOutput::Pack(output) = engine
-        .pack("protect route in next.js with supabase auth", 3, 10, false)
+        .pack("protect route in next.js with supabase auth", 3, 10)
         .await
         .expect("pack should succeed")
     else {
@@ -407,6 +370,11 @@ async fn pack_respects_token_budget() {
     assert!(output.evidence.is_empty());
     assert_eq!(output.pack_summary, "No evidence found for the query.");
     assert_eq!(output.token_budget, 10);
+    let metrics = output.metrics.expect("pack metrics should exist");
+    assert_eq!(metrics.queried_canisters_count, 2);
+    assert_eq!(metrics.returned_snippets_count, 1);
+    assert_eq!(metrics.selected_evidence_count, 0);
+    assert_eq!(metrics.estimated_pack_tokens, 0);
 }
 
 #[tokio::test]
@@ -425,7 +393,7 @@ async fn cite_reads_inline_pack_json() {
 async fn list_sources_returns_catalog_entries() {
     let engine = ContextEngine::new(catalog(), provider());
     let CommandOutput::ListSources(output) = engine
-        .list_sources(false)
+        .list_sources()
         .await
         .expect("list_sources should succeed")
     else {
@@ -445,7 +413,7 @@ async fn filter_sources_respects_domain_and_version() {
             trust: Some("official".to_string()),
             version: Some("15".to_string()),
             limit: Some(5),
-        }, false)
+        })
         .await
         .expect("filter_sources should succeed")
     else {
@@ -454,118 +422,21 @@ async fn filter_sources_respects_domain_and_version() {
 
     assert_eq!(output.count, 1);
     assert_eq!(output.sources[0].source_id, "/vercel/next.js");
-    assert_eq!(output.filters.expect("filters should exist").version.as_deref(), Some("15"));
-}
-
-#[tokio::test]
-async fn resolve_can_include_skill_sources_when_opted_in() {
-    let engine = ContextEngine::new(catalog(), provider());
-    let CommandOutput::Resolve(output) = engine
-        .resolve("next migration", 5, true)
-        .await
-        .expect("resolve should succeed")
-    else {
-        panic!("expected resolve output");
-    };
-
-    assert_eq!(output.candidate_sources[0].source_id, "/skills/nextjs/migration");
-}
-
-#[tokio::test]
-async fn query_can_read_skill_source_without_opt_in_flag() {
-    let engine = ContextEngine::new(catalog(), provider());
-    let CommandOutput::Query(output) = engine
-        .query("/skills/nextjs/migration", "upgrade plan", None, 5)
-        .await
-        .expect("query should succeed")
-    else {
-        panic!("expected query output");
-    };
-
-    assert_eq!(output.snippets[0].source_id, "/skills/nextjs/migration");
-    assert!(output.snippets[0].citation.contains("github.com/ICME-Lab"));
-}
-
-#[tokio::test]
-async fn pack_can_include_skill_evidence_when_opted_in() {
-    let engine = ContextEngine::new(catalog(), provider());
-    let CommandOutput::Pack(output) = engine
-        .pack("next migration", 5, 3000, true)
-        .await
-        .expect("pack should succeed")
-    else {
-        panic!("expected pack output");
-    };
-
-    assert!(
+    assert_eq!(
         output
-            .evidence
-            .iter()
-            .any(|item| item.source_id == "/skills/nextjs/migration")
+            .filters
+            .expect("filters should exist")
+            .version
+            .as_deref(),
+        Some("15")
     );
 }
 
 #[tokio::test]
-async fn list_sources_hides_skills_by_default_but_includes_them_with_opt_in() {
-    let engine = ContextEngine::new(catalog(), provider());
-
-    let CommandOutput::ListSources(default_output) = engine
-        .list_sources(false)
-        .await
-        .expect("list_sources should succeed")
-    else {
-        panic!("expected list sources output");
-    };
-    assert!(
-        default_output
-            .sources
-            .iter()
-            .all(|item| item.domain != "skill_knowledge")
-    );
-
-    let CommandOutput::ListSources(opted_in_output) = engine
-        .list_sources(true)
-        .await
-        .expect("list_sources should succeed")
-    else {
-        panic!("expected list sources output");
-    };
-    assert!(
-        opted_in_output
-            .sources
-            .iter()
-            .any(|item| item.source_id == "/skills/nextjs/migration")
-    );
-}
-
-#[tokio::test]
-async fn filter_sources_can_return_skill_domain_without_opt_in() {
-    let engine = ContextEngine::new(catalog(), provider());
-    let CommandOutput::FilterSources(output) = engine
-        .filter_sources(
-            FilterSourcesArgs {
-                domain: Some("skill_knowledge".to_string()),
-                trust: None,
-                version: None,
-                limit: Some(5),
-            },
-            false,
-        )
-        .await
-        .expect("filter_sources should succeed")
-    else {
-        panic!("expected filter sources output");
-    };
-
-    assert_eq!(output.count, 1);
-    assert_eq!(output.sources[0].source_id, "/skills/nextjs/migration");
-}
-
-#[tokio::test]
-async fn skill_boost_does_not_leak_into_regular_queries() {
+async fn resolve_keeps_next_migration_queries_in_docs_sources() {
     let engine = ContextEngine::new(catalog(), provider());
     let CommandOutput::Resolve(output) = engine
-        .resolve("next middleware", 5, true)
+        .resolve("next migration", 5)
         .await
         .expect("resolve should succeed")
     else {

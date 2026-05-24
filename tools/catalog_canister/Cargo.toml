@@ -11,13 +11,11 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 candid = "0.10.20"
-ic-cdk = "0.18.7"
-ic-sql-migrate = { version = "0.0.5", features = ["sqlite"] }
+ic-cdk = "0.20.1"
 kinic_context_core = { path = "../../crates/kinic_context_core" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 rusqlite = { version = "0.37.0", features = ["bundled"] }
 
-[build-dependencies]
-ic-sql-migrate = "0.0.5"
-
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-ic-rusqlite = { version = "0.4.3", default-features = false, features = ["precompiled"] }
+ic-sqlite-vfs = { version = "=0.2.2", default-features = false, features = ["sqlite-precompiled"] }

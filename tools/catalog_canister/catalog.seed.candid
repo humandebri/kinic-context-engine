@@ -2,7 +2,7 @@
   record {
     source_id = "/vercel/next.js";
     title = "Next.js Docs";
-    aliases = vec {"next"; "nextjs"; "next.js"; "middleware"};
+    aliases = vec {"next"; "nextjs"; "next.js"; "middleware"; "next migration"; "nextjs migration"};
     trust = "official";
     domain = "code_docs";
     skill_kind = null;
@@ -11,7 +11,7 @@
     canister_ids = vec {};
     supported_versions = vec {"14"; "15"};
     retrieved_at = "2026-03-17T00:00:00Z";
-    citations = vec {"https://nextjs.org/docs"};
+    citations = vec {"https://nextjs.org/docs"; "https://nextjs.org/docs/app/building-your-application/upgrading"};
   };
   record {
     source_id = "/supabase/docs";
@@ -40,19 +40,5 @@
     supported_versions = vec {"19"};
     retrieved_at = "2026-03-17T00:00:00Z";
     citations = vec {"https://react.dev"};
-  };
-  record {
-    source_id = "/skills/nextjs/migration";
-    title = "Next.js Migration Skill";
-    aliases = vec {"next migration"; "nextjs migration"; "upgrade"};
-    trust = "curated";
-    domain = "skill_knowledge";
-    skill_kind = opt "migration";
-    targets = vec {"nextjs"};
-    capabilities = vec {"auth"; "middleware"; "routing"};
-    canister_ids = vec {};
-    supported_versions = vec {};
-    retrieved_at = "2026-03-17T00:00:00Z";
-    citations = vec {"https://github.com/ICME-Lab/kinic-context-engine/blob/main/skills/nextjs/migration/SKILL.md"};
   };
 })

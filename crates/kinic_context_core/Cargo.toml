@@ -9,6 +9,7 @@ description = "Shared read-only IC client and wire types for the KINIC context r
 [dependencies]
 anyhow = "1.0.100"
 candid = "0.10.20"
+kinic_retrieval_types = { path = "../kinic_retrieval_types" }
 serde = { version = "1.0.228", features = ["derive"] }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]

@@ -3,9 +3,13 @@
 // Why: Reuse the current KINIC memory search backend rather than assuming new source canisters exist.
 use anyhow::Result;
 
-use crate::client::QueryClient;
+use crate::{
+    client::QueryClient,
+    types::{HybridQueryRequest, HybridSearchResult},
+};
 
 const SEARCH_METHOD: &str = "search";
+const HYBRID_QUERY_METHOD: &str = "hybrid_query";
 
 pub async fn search(
     client: &QueryClient,
@@ -14,5 +18,19 @@ pub async fn search(
 ) -> Result<Vec<(f32, String)>> {
     client
         .query::<Vec<f32>, Vec<(f32, String)>>(memory_canister_id, SEARCH_METHOD, embedding)
+        .await
+}
+
+pub async fn hybrid_query(
+    client: &QueryClient,
+    memory_canister_id: &str,
+    request: HybridQueryRequest,
+) -> Result<Vec<HybridSearchResult>> {
+    client
+        .query::<HybridQueryRequest, Vec<HybridSearchResult>>(
+            memory_canister_id,
+            HYBRID_QUERY_METHOD,
+            request,
+        )
         .await
 }

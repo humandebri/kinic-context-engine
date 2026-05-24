@@ -23,11 +23,7 @@ pub async fn get_source(
     source_id: &str,
 ) -> Result<Option<SourceMetadata>> {
     client
-        .query_args(
-            catalog_canister_id,
-            "get_source",
-            (source_id.to_string(),),
-        )
+        .query_args(catalog_canister_id, "get_source", (source_id.to_string(),))
         .await
 }
 

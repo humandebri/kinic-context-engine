@@ -44,9 +44,6 @@ pub struct ResolveArgs {
         help = "Maximum number of sources to return"
     )]
     pub max_sources: usize,
-
-    #[arg(long, help = "Include skill knowledge sources in resolution")]
-    pub include_skills: bool,
 }
 
 #[derive(Debug, Args)]
@@ -86,9 +83,6 @@ pub struct PackArgs {
         help = "Requested token budget for the pack"
     )]
     pub max_tokens: usize,
-
-    #[arg(long, help = "Include skill knowledge sources in resolution")]
-    pub include_skills: bool,
 }
 
 #[derive(Debug, Args)]
@@ -98,14 +92,11 @@ pub struct CiteArgs {
 }
 
 #[derive(Debug, Args)]
-pub struct ListSourcesArgs {
-    #[arg(long, help = "Include skill knowledge sources")]
-    pub include_skills: bool,
-}
+pub struct ListSourcesArgs {}
 
 #[derive(Debug, Args)]
 pub struct FilterSourcesArgs {
-    #[arg(long, help = "Optional domain filter; `skill_knowledge` can be queried directly")]
+    #[arg(long, help = "Optional domain filter")]
     pub domain: Option<String>,
 
     #[arg(long, help = "Optional trust filter")]
@@ -116,7 +107,4 @@ pub struct FilterSourcesArgs {
 
     #[arg(long, help = "Optional result limit")]
     pub limit: Option<u32>,
-
-    #[arg(long, help = "Include skill knowledge sources in the result set")]
-    pub include_skills: bool,
 }

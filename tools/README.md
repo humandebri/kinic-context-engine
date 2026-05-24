@@ -26,7 +26,6 @@ The initial source logical IDs are fixed to:
 - `/vercel/next.js`
 - `/supabase/docs`
 - `/react/docs`
-- `/skills/nextjs/migration`
 
 Each logical source maps to memory instance canister IDs through the catalog canister, not a local source map env var.
 

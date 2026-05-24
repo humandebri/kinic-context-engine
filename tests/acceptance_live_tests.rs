@@ -4,7 +4,9 @@
 use assert_cmd::Command;
 use serde_json::Value;
 
-use kinic_context_core::{catalog, client::QueryClient, config::ReadConfig, launcher, memory};
+use kinic_context_core::{
+    catalog, client::QueryClient, config::ReadConfig, launcher, memory, types::HybridQueryRequest,
+};
 
 fn extract_object(stdout: &[u8]) -> Value {
     serde_json::from_slice(stdout).expect("stdout should be valid JSON")
@@ -16,7 +18,10 @@ fn pack_succeeds_against_live_catalog() {
     let config = ReadConfig::from_env().expect("live config should exist");
     let output = Command::cargo_bin("kinic-context-cli")
         .expect("binary should build")
-        .env("KINIC_CONTEXT_CATALOG_CANISTER_ID", config.catalog_canister_id)
+        .env(
+            "KINIC_CONTEXT_CATALOG_CANISTER_ID",
+            config.catalog_canister_id,
+        )
         .env("KINIC_CONTEXT_IC_HOST", config.ic_host)
         .args(["pack", "protect route in next.js with supabase auth"])
         .assert()
@@ -26,21 +31,25 @@ fn pack_succeeds_against_live_catalog() {
         .clone();
 
     let json = extract_object(&output);
-    assert!(json["resolved_sources"]
-        .as_array()
-        .expect("resolved_sources should be an array")
-        .len()
-        > 0);
-    assert!(json["evidence"]
-        .as_array()
-        .expect("evidence should be an array")
-        .len()
-        > 0);
+    assert!(
+        json["resolved_sources"]
+            .as_array()
+            .expect("resolved_sources should be an array")
+            .len()
+            > 0
+    );
+    assert!(
+        json["evidence"]
+            .as_array()
+            .expect("evidence should be an array")
+            .len()
+            > 0
+    );
 }
 
 #[tokio::test]
-#[ignore = "requires live catalog and memory instance canisters"]
-async fn catalog_resolves_source_and_memory_search_succeeds() {
+#[ignore = "requires live catalog and hybrid query canisters"]
+async fn catalog_resolves_source_and_hybrid_query_succeeds() {
     let config = ReadConfig::from_env().expect("live config should exist");
     let client = QueryClient::new(&config.ic_host, config.fetch_root_key)
         .await
@@ -54,10 +63,19 @@ async fn catalog_resolves_source_and_memory_search_succeeds() {
         .canister_ids
         .first()
         .expect("next.js source should expose a memory instance canister");
-    let embedding = vec![0.0_f32; 1024];
-    let _ = memory::search(&client, canister_id, embedding)
+    let request = HybridQueryRequest {
+        query_text: "middleware".to_string(),
+        query_embedding: vec![0.0_f32; 1024],
+        version: None,
+        top_k: 3,
+        candidate_limit: None,
+        keyword_weight: None,
+        vector_weight: None,
+        filters: None,
+    };
+    let _ = memory::hybrid_query(&client, canister_id, request)
         .await
-        .expect("memory search should succeed");
+        .expect("hybrid query should succeed");
 }
 
 #[tokio::test]

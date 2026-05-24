@@ -6,6 +6,7 @@ __pycache__/
 .env
 .env.*
 *.local
+.local/models/
 tools/source_ops/artifacts/raw/
 tools/source_ops/artifacts/normalized/
 tools/source_ops/artifacts/reports/

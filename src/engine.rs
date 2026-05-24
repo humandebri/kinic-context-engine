@@ -1,7 +1,7 @@
 // Where: src/engine.rs
 // What: Orchestration layer for resolve, query, pack, and cite flows.
 // Why: Keep command behavior consistent and centralize the read-only business logic.
-use std::{collections::BTreeSet, path::Path};
+use std::{collections::BTreeSet, path::Path, time::Instant};
 
 use anyhow::{Result, anyhow};
 use futures::future::join_all;
@@ -10,30 +10,16 @@ use kinic_context_core::types::FilterSourcesArgs;
 use crate::{
     catalog::SourceCatalog,
     model::{
-        CitationEntry, CitationOutput, CommandOutput, EvidencePack, Intent, QueryOutput,
-        ResolveOutput, SourceFilters, SourceMetadata, SourceSnippet, SourcesOutput, Warning,
+        CitationEntry, CitationOutput, CommandOutput, EvidencePack, Intent, PackMetrics,
+        QueryOutput, ResolveOutput, ResolvedSource, SourceFilters, SourceMetadata, SourceSnippet,
+        SourcesOutput, Warning,
+    },
+    pack::{
+        build_resolved_source_details, estimate_pack_tokens, per_source_top_k,
+        select_sources_for_pack,
     },
     provider::SourceQueryProvider,
 };
-
-const SKILL_DOMAIN: &str = "skill_knowledge";
-const SKILL_HINTS: [&str; 6] = [
-    "migration",
-    "upgrade",
-    "debug",
-    "checklist",
-    "playbook",
-    "workflow",
-];
-const TOPIC_HINTS: [&str; 7] = [
-    "auth",
-    "middleware",
-    "routing",
-    "cookies",
-    "server",
-    "hooks",
-    "deploy",
-];
 
 pub struct ContextEngine<C, P> {
     catalog: Option<C>,
@@ -52,21 +38,11 @@ where
         }
     }
 
-    pub async fn resolve(
-        &self,
-        query: &str,
-        max_sources: usize,
-        include_skills: bool,
-    ) -> Result<CommandOutput> {
+    pub async fn resolve(&self, query: &str, max_sources: usize) -> Result<CommandOutput> {
         let candidate_sources = self
             .catalog()
             .resolve_sources(query, max_sources.saturating_mul(2).max(1))
             .await?;
-        let candidate_sources = if include_skills {
-            self.rerank_resolved(query, candidate_sources).await?
-        } else {
-            self.exclude_skill_resolved(candidate_sources).await?
-        };
         Ok(CommandOutput::Resolve(ResolveOutput {
             query: query.to_string(),
             intent: infer_intent(query),
@@ -96,19 +72,19 @@ where
         query: &str,
         max_sources: usize,
         max_tokens: usize,
-        include_skills: bool,
     ) -> Result<CommandOutput> {
-        let resolved_sources = self
+        let pack_started_at = Instant::now();
+        let resolve_started_at = Instant::now();
+        let resolved_candidates = self
             .catalog()
             .resolve_sources(query, max_sources.saturating_mul(2).max(1))
             .await?;
-        let resolved_sources = if include_skills {
-            self.rerank_resolved(query, resolved_sources).await?
-        } else {
-            self.exclude_skill_resolved(resolved_sources).await?
-        };
-        let resolved_sources: Vec<_> = resolved_sources.into_iter().take(max_sources).collect();
-        let source_ids: Vec<String> = resolved_sources
+        let resolve_ms = elapsed_ms(resolve_started_at);
+        let resolved_sources_count = resolved_candidates.len();
+        let selected_sources = select_sources_for_pack(&resolved_candidates, max_sources, max_tokens);
+        let resolved_source_details =
+            build_resolved_source_details(&resolved_candidates, &selected_sources);
+        let source_ids: Vec<String> = selected_sources
             .iter()
             .map(|candidate| candidate.source_id.clone())
             .collect();
@@ -116,19 +92,39 @@ where
         let mut evidence = Vec::new();
         let mut seen = BTreeSet::new();
         let mut successful_sources = 0_usize;
+        let mut queried_canisters_count = 0_usize;
+        let mut returned_snippets_count = 0_usize;
+        let mut empty_source_count = 0_usize;
+        let mut source_error_count = 0_usize;
+        let mut query_ms_total = 0_u64;
+        let source_top_k = per_source_top_k(selected_sources.len(), max_tokens);
 
         for outcome in self
-            .fetch_pack_outcomes(query.to_string(), source_ids.clone())
+            .fetch_pack_outcomes(query.to_string(), selected_sources, source_top_k)
             .await?
         {
+            queried_canisters_count += outcome.queried_canisters_count();
+            query_ms_total = query_ms_total.saturating_add(outcome.query_ms());
             match outcome {
-                PackSourceOutcome::QueryFailed { source_id, stage } => warnings.push(Warning {
-                    kind: "source_error".to_string(),
-                    message: format!("Failed to {stage} for {source_id}"),
-                }),
-                PackSourceOutcome::QuerySucceeded { source_id, snippets } => {
+                PackSourceOutcome::QueryFailed {
+                    source_id, stage, ..
+                } => {
+                    source_error_count += 1;
+                    warnings.push(Warning {
+                        kind: "source_error".to_string(),
+                        message: format!("Failed to {stage} for {source_id}"),
+                    });
+                }
+                PackSourceOutcome::QuerySucceeded {
+                    source_id,
+                    snippets,
+                    returned_snippets,
+                    ..
+                } => {
                     successful_sources += 1;
+                    returned_snippets_count += returned_snippets;
                     if snippets.is_empty() {
+                        empty_source_count += 1;
                         warnings.push(Warning {
                             kind: "empty_source".to_string(),
                             message: format!("No snippets matched for {source_id}"),
@@ -156,19 +152,33 @@ where
             ));
         }
 
+        let metrics = PackMetrics {
+            resolved_sources_count,
+            queried_canisters_count,
+            returned_snippets_count,
+            selected_evidence_count: evidence.len(),
+            estimated_pack_tokens: estimate_pack_tokens(&evidence),
+            empty_source_count,
+            source_error_count,
+            resolve_ms,
+            query_ms_total,
+            pack_ms_total: elapsed_ms(pack_started_at),
+        };
+
         Ok(CommandOutput::Pack(EvidencePack {
             query: query.to_string(),
             resolved_sources: source_ids,
+            resolved_source_details,
             evidence: evidence.clone(),
             warnings,
             pack_summary: summarize(&evidence),
             token_budget: max_tokens,
+            metrics: Some(metrics),
         }))
     }
 
-    pub async fn list_sources(&self, include_skills: bool) -> Result<CommandOutput> {
+    pub async fn list_sources(&self) -> Result<CommandOutput> {
         let sources = self.catalog().list_sources().await?;
-        let sources = filter_skill_sources(sources, include_skills, false);
         let count = sources.len();
         Ok(CommandOutput::ListSources(SourcesOutput {
             sources,
@@ -177,14 +187,8 @@ where
         }))
     }
 
-    pub async fn filter_sources(
-        &self,
-        args: FilterSourcesArgs,
-        include_skills: bool,
-    ) -> Result<CommandOutput> {
-        let allow_skill_domain = args.domain.as_deref() == Some(SKILL_DOMAIN);
+    pub async fn filter_sources(&self, args: FilterSourcesArgs) -> Result<CommandOutput> {
         let sources = self.catalog().filter_sources(args.clone()).await?;
-        let sources = filter_skill_sources(sources, include_skills, allow_skill_domain);
         let count = sources.len();
         Ok(CommandOutput::FilterSources(SourcesOutput {
             sources,
@@ -210,104 +214,46 @@ where
             .expect("provider is required for query/pack")
     }
 
-    async fn exclude_skill_resolved(
-        &self,
-        candidates: Vec<crate::model::ResolvedSource>,
-    ) -> Result<Vec<crate::model::ResolvedSource>> {
-        let mut filtered = Vec::new();
-        for candidate in candidates {
-            let source = self.catalog().get_source(&candidate.source_id).await?;
-            if !is_skill_source(&source) {
-                filtered.push(candidate);
-            }
-        }
-        Ok(filtered)
-    }
-
-    async fn rerank_resolved(
-        &self,
-        query: &str,
-        candidates: Vec<crate::model::ResolvedSource>,
-    ) -> Result<Vec<crate::model::ResolvedSource>> {
-        let query_normalized = normalize(query);
-        let task_kind = extract_task_kind(&query_normalized);
-        let entities = extract_skill_entities(&query_normalized);
-        let topics = extract_skill_topics(&query_normalized);
-        let mut reranked = Vec::with_capacity(candidates.len());
-
-        for mut candidate in candidates {
-            let source = self.catalog().get_source(&candidate.source_id).await?;
-            if is_skill_source(&source) {
-                let task_kind_match =
-                    task_kind.is_some() && source.skill_kind.as_deref() == task_kind;
-                if task_kind_match {
-                    candidate.score += 0.7;
-                    candidate
-                        .reasons
-                        .push("skill kind matched query".to_string());
-                    if source.targets.iter().any(|target| {
-                        let target_normalized = normalize(target);
-                        entities.iter().any(|entity| entity == &target_normalized)
-                    }) {
-                        candidate.score += 0.8;
-                        candidate
-                            .reasons
-                            .push("skill target matched query entity".to_string());
-                    }
-                    if source.capabilities.iter().any(|capability| {
-                        let capability_normalized = normalize(capability);
-                        topics.iter().any(|topic| topic == &capability_normalized)
-                    }) {
-                        candidate.score += 0.45;
-                        candidate
-                            .reasons
-                            .push("skill capability matched query topic".to_string());
-                    }
-                }
-                if source
-                    .aliases
-                    .iter()
-                    .any(|alias| normalize(alias) == query_normalized)
-                {
-                    candidate.score += 0.45;
-                    candidate
-                        .reasons
-                        .push("skill alias exactly matched query".to_string());
-                }
-            }
-            reranked.push(candidate);
-        }
-
-        reranked.sort_by(|left, right| {
-            right
-                .score
-                .partial_cmp(&left.score)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
-        Ok(reranked)
-    }
-
     async fn fetch_pack_outcomes(
         &self,
         query: String,
-        source_ids: Vec<String>,
+        selected_sources: Vec<ResolvedSource>,
+        source_top_k: usize,
     ) -> Result<Vec<PackSourceOutcome>> {
-        let futures = source_ids.into_iter().map(|source_id| {
+        let futures = selected_sources.into_iter().map(|selected_source| {
             let catalog = self.catalog();
             let provider = self.provider();
             let query = query.clone();
             async move {
+                let source_id = selected_source.source_id;
                 match catalog.get_source(&source_id).await {
-                    Ok(source) => match provider.query(source, &query, None, 3).await {
-                        Ok(snippets) => PackSourceOutcome::QuerySucceeded { source_id, snippets },
-                        Err(_) => PackSourceOutcome::QueryFailed {
-                            source_id,
-                            stage: "query source canisters",
-                        },
-                    },
+                    Ok(source) => {
+                        let started_at = Instant::now();
+                        let queried_canisters_count = source.canister_ids.len();
+                        match provider.query(source, &query, None, source_top_k).await {
+                            Ok(snippets) => {
+                                let returned_snippets = snippets.len();
+                                PackSourceOutcome::QuerySucceeded {
+                                    source_id,
+                                    snippets,
+                                    queried_canisters_count,
+                                    returned_snippets,
+                                    query_ms: elapsed_ms(started_at),
+                                }
+                            }
+                            Err(_) => PackSourceOutcome::QueryFailed {
+                                source_id,
+                                stage: "query source canisters",
+                                queried_canisters_count,
+                                query_ms: elapsed_ms(started_at),
+                            },
+                        }
+                    }
                     Err(_) => PackSourceOutcome::QueryFailed {
                         source_id,
                         stage: "load source metadata",
+                        queried_canisters_count: 0,
+                        query_ms: 0,
                     },
                 }
             }
@@ -364,11 +310,39 @@ enum PackSourceOutcome {
     QueryFailed {
         source_id: String,
         stage: &'static str,
+        queried_canisters_count: usize,
+        query_ms: u64,
     },
     QuerySucceeded {
         source_id: String,
         snippets: Vec<SourceSnippet>,
+        queried_canisters_count: usize,
+        returned_snippets: usize,
+        query_ms: u64,
     },
+}
+
+impl PackSourceOutcome {
+    fn queried_canisters_count(&self) -> usize {
+        match self {
+            Self::QueryFailed {
+                queried_canisters_count,
+                ..
+            }
+            | Self::QuerySucceeded {
+                queried_canisters_count,
+                ..
+            } => *queried_canisters_count,
+        }
+    }
+
+    fn query_ms(&self) -> u64 {
+        match self {
+            Self::QueryFailed { query_ms, .. } | Self::QuerySucceeded { query_ms, .. } => {
+                *query_ms
+            }
+        }
+    }
 }
 
 impl SourceQueryProvider for NoopProvider {
@@ -404,7 +378,7 @@ fn trim_evidence_to_budget(evidence: Vec<SourceSnippet>, max_tokens: usize) -> V
     let mut selected = Vec::new();
     let mut used_tokens = 0_usize;
     for snippet in evidence {
-        let snippet_tokens = approximate_tokens(&snippet);
+        let snippet_tokens = estimate_pack_tokens(std::slice::from_ref(&snippet));
         if used_tokens.saturating_add(snippet_tokens) > max_tokens {
             continue;
         }
@@ -412,13 +386,6 @@ fn trim_evidence_to_budget(evidence: Vec<SourceSnippet>, max_tokens: usize) -> V
         selected.push(snippet);
     }
     selected
-}
-
-fn approximate_tokens(snippet: &SourceSnippet) -> usize {
-    let chars = snippet.title.chars().count()
-        + snippet.snippet.chars().count()
-        + snippet.citation.chars().count();
-    chars.div_ceil(4)
 }
 
 fn infer_intent(query: &str) -> Intent {
@@ -450,60 +417,6 @@ fn extract_entities(query: &str) -> Vec<String> {
         .collect()
 }
 
-fn filter_skill_sources(
-    sources: Vec<SourceMetadata>,
-    include_skills: bool,
-    allow_skill_domain: bool,
-) -> Vec<SourceMetadata> {
-    if include_skills || allow_skill_domain {
-        return sources;
-    }
-
-    sources
-        .into_iter()
-        .filter(|source| !is_skill_source(source))
-        .collect()
-}
-
-fn is_skill_source(source: &SourceMetadata) -> bool {
-    source.domain == SKILL_DOMAIN
-}
-
-fn normalize(text: &str) -> String {
-    text.to_ascii_lowercase()
-        .chars()
-        .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { ' ' })
-        .collect::<String>()
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
-fn extract_task_kind(query_normalized: &str) -> Option<&'static str> {
-    SKILL_HINTS
-        .iter()
-        .copied()
-        .find(|hint| query_normalized.contains(hint))
-}
-
-fn extract_skill_entities(query_normalized: &str) -> Vec<String> {
-    let mut entities = Vec::new();
-    if query_normalized.contains("nextjs") || query_normalized.contains("next") {
-        entities.push("nextjs".to_string());
-    }
-    if query_normalized.contains("supabase") {
-        entities.push("supabase".to_string());
-    }
-    if query_normalized.contains("react") {
-        entities.push("react".to_string());
-    }
-    entities
-}
-
-fn extract_skill_topics(query_normalized: &str) -> Vec<String> {
-    TOPIC_HINTS
-        .iter()
-        .filter(|topic| query_normalized.contains(**topic))
-        .map(|topic| (*topic).to_string())
-        .collect()
+fn elapsed_ms(started_at: Instant) -> u64 {
+    started_at.elapsed().as_millis().min(u128::from(u64::MAX)) as u64
 }

@@ -54,28 +54,28 @@ fn runtime_manifest_does_not_pull_write_side_dependencies() {
 }
 
 #[test]
-fn help_exposes_include_skills_on_catalog_and_pack_commands() {
+fn help_no_longer_exposes_include_skills_on_catalog_and_pack_commands() {
     bin()
         .args(["resolve", "--help"])
         .assert()
         .success()
-        .stdout(contains("--include-skills"));
+        .stdout(predicates::str::contains("--include-skills").not());
 
     bin()
         .args(["pack", "--help"])
         .assert()
         .success()
-        .stdout(contains("--include-skills"));
+        .stdout(predicates::str::contains("--include-skills").not());
 
     bin()
         .args(["list-sources", "--help"])
         .assert()
         .success()
-        .stdout(contains("--include-skills"));
+        .stdout(predicates::str::contains("--include-skills").not());
 
     bin()
         .args(["filter-sources", "--help"])
         .assert()
         .success()
-        .stdout(contains("--include-skills"));
+        .stdout(predicates::str::contains("--include-skills").not());
 }
