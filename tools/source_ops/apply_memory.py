@@ -1,6 +1,6 @@
 # Where: tools/source_ops/apply_memory.py
-# What: Thin wrapper that delegates normalized payload writes to an external Kinic writer path.
-# Why: Keep write-side concerns outside this repo while still letting automation orchestrate updates.
+# What: Apply normalized payloads to an existing Kinic Wiki database.
+# Why: Reuse wiki canister APIs instead of writing to dedicated memory canisters.
 from __future__ import annotations
 
 import argparse
@@ -11,18 +11,15 @@ if __package__ in {None, ""}:
     from pathlib import Path
 
     sys.path.append(str(Path(__file__).resolve().parents[2]))
-    from tools.source_ops.common import run_command, slugify_source_id
+    from tools.source_ops.common import slugify_source_id
     from tools.source_ops.config import Settings, load_settings
+    from tools.source_ops.kinic_writer import write_batch
     from tools.source_ops.registry import load_registry, select_sources
 else:
-    from .common import run_command, slugify_source_id
+    from .common import slugify_source_id
     from .config import Settings, load_settings
+    from .kinic_writer import write_batch
     from .registry import load_registry, select_sources
-
-
-def _latest_version(source: dict[str, object]) -> str:
-    versions = source["catalog_metadata"].get("supported_versions", [])
-    return versions[-1] if versions else "unversioned"
 
 
 def build_writer_commands(
@@ -33,33 +30,22 @@ def build_writer_commands(
     payload_path_override: str | None = None,
     rollback: bool = False,
 ) -> list[list[str]]:
-    canister_ids = source["memory_targets"][f"{environment}_canister_ids"]
-    if not canister_ids:
-        raise ValueError(f"{source['source_id']}: no {environment} memory canister ids configured")
-    template = settings.memory_rollback_template if rollback else settings.memory_writer_template
-    if not template:
-        raise ValueError(
-            "SOURCE_OPS_MEMORY_ROLLBACK_TEMPLATE is required for rollback"
-            if rollback
-            else "SOURCE_OPS_MEMORY_WRITER_TEMPLATE is required for apply_memory"
-        )
-
+    database_id = getattr(settings, f"{environment}_database_id")
+    if not database_id:
+        raise ValueError(f"SOURCE_OPS_{environment.upper()}_DATABASE_ID is required")
     payload_path = payload_path_override or str(
         settings.normalized_dir / f"{slugify_source_id(source['source_id'])}.jsonl"
     )
-    tag = f"source:{source['source_id']}:{_latest_version(source)}"
-    commands = []
-    for memory_id in canister_ids:
-        command = template.format(
-            identity=settings.kinic_identity,
-            memory_id=memory_id,
-            payload_path=payload_path,
-            source_id=source["source_id"],
-            tag=tag,
-            environment=environment,
-        )
-        commands.append(command)
-    return commands
+    return [[
+        "python3",
+        "tools/source_ops/kinic_writer.py",
+        "--env",
+        environment,
+        "--source-json",
+        "<registry-entry>",
+        "--payload-path",
+        payload_path,
+    ]]
 
 
 def apply_memory(
@@ -71,25 +57,21 @@ def apply_memory(
     payload_path_override: str | None = None,
     rollback: bool = False,
 ) -> dict[str, object]:
-    commands = build_writer_commands(
+    build_writer_commands(
         source,
         settings,
         environment,
         payload_path_override=payload_path_override,
         rollback=rollback,
     )
-    results = [
-        run_command(command, dry_run=dry_run, timeout=settings.write_timeout_seconds)
-        for command in commands
-    ]
-    failures = [result for result in results if result["exit_code"] != 0]
-    return {
-        "source_id": source["source_id"],
-        "environment": environment,
-        "rollback": rollback,
-        "status": "ok" if not failures else "failed",
-        "results": results,
-    }
+    return write_batch(
+        source,
+        settings,
+        environment,
+        dry_run,
+        payload_path_override=payload_path_override,
+        rollback=rollback,
+    )
 
 
 def main() -> int:

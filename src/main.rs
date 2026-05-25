@@ -4,14 +4,13 @@
 use anyhow::Result;
 use clap::Parser;
 use kinic_context_cli::{
-    catalog::IcSourceCatalog,
+    catalog::WikiCliSourceCatalog,
     cli::{Cli, Command},
     config::ReadConfig,
     engine::ContextEngine,
     output::render_json,
-    provider::IcSourceQueryProvider,
+    provider::WikiCliSourceQueryProvider,
 };
-use kinic_context_core::client::QueryClient;
 use kinic_context_core::types::FilterSourcesArgs;
 
 #[tokio::main]
@@ -23,11 +22,7 @@ async fn main() -> Result<()> {
         other => {
             let engine = load_engine().await?;
             match other {
-                Command::Resolve(args) => {
-                    engine
-                        .resolve(&args.query, args.max_sources, args.include_skills)
-                        .await?
-                }
+                Command::Resolve(args) => engine.resolve(&args.query, args.max_sources).await?,
                 Command::Query(args) => {
                     engine
                         .query(
@@ -40,24 +35,18 @@ async fn main() -> Result<()> {
                 }
                 Command::Pack(args) => {
                     engine
-                        .pack(
-                            &args.query,
-                            args.max_sources,
-                            args.max_tokens,
-                            args.include_skills,
-                        )
+                        .pack(&args.query, args.max_sources, args.max_tokens)
                         .await?
                 }
-                Command::ListSources(args) => engine.list_sources(args.include_skills).await?,
+                Command::ListSources(_) => engine.list_sources().await?,
                 Command::FilterSources(args) => {
-                    let include_skills = args.include_skills;
                     engine
                         .filter_sources(FilterSourcesArgs {
                             domain: args.domain,
                             trust: args.trust,
                             version: args.version,
                             limit: args.limit,
-                        }, include_skills)
+                        })
                         .await?
                 }
                 Command::Cite(_) => unreachable!("handled above"),
@@ -69,10 +58,10 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn load_engine() -> Result<ContextEngine<IcSourceCatalog, IcSourceQueryProvider>> {
+async fn load_engine() -> Result<ContextEngine<WikiCliSourceCatalog, WikiCliSourceQueryProvider>> {
     let config = ReadConfig::from_env()?;
-    let client = QueryClient::new(&config.ic_host, config.fetch_root_key).await?;
-    let catalog = IcSourceCatalog::new(client.clone(), config.catalog_canister_id);
-    let provider = IcSourceQueryProvider::new(client);
+    let catalog =
+        WikiCliSourceCatalog::new(config.wiki_cli_bin.clone(), config.database_id.clone());
+    let provider = WikiCliSourceQueryProvider::new(config.wiki_cli_bin, config.database_id);
     Ok(ContextEngine::new(catalog, provider))
 }

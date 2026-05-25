@@ -1,6 +1,6 @@
 // Where: crates/kinic_context_core/src/types.rs
-// What: Shared source catalog metadata and retrieval snippet wire types.
-// Why: Use one canonical shape across catalog canisters, Candid decoding, and CLI JSON output.
+// What: Shared source metadata and retrieval snippet output types.
+// Why: Use one canonical shape across CLI JSON output and source_ops tests.
 use candid::CandidType;
 use serde::{Deserialize, Serialize};
 
@@ -11,10 +11,6 @@ pub struct SourceMetadata {
     pub aliases: Vec<String>,
     pub trust: String,
     pub domain: String,
-    pub skill_kind: Option<String>,
-    pub targets: Vec<String>,
-    pub capabilities: Vec<String>,
-    pub canister_ids: Vec<String>,
     pub supported_versions: Vec<String>,
     pub retrieved_at: String,
     pub citations: Vec<String>,
@@ -43,10 +39,6 @@ pub struct SourceUpsert {
     pub aliases: Vec<String>,
     pub trust: String,
     pub domain: String,
-    pub skill_kind: Option<String>,
-    pub targets: Vec<String>,
-    pub capabilities: Vec<String>,
-    pub canister_ids: Vec<String>,
     pub supported_versions: Vec<String>,
     pub retrieved_at: String,
     pub citations: Vec<String>,

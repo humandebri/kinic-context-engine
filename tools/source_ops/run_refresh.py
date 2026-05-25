@@ -12,7 +12,6 @@ if __package__ in {None, ""}:
     import sys
 
     sys.path.append(str(Path(__file__).resolve().parents[2]))
-    from tools.source_ops.apply_catalog import apply_catalog
     from tools.source_ops.apply_memory import apply_memory
     from tools.source_ops.collect import collect_source
     from tools.source_ops.common import dump_json, load_json, load_jsonl, slugify_source_id, utc_now, write_text
@@ -23,7 +22,6 @@ if __package__ in {None, ""}:
     from tools.source_ops.smoke import smoke_source
     from tools.source_ops.validate import validate_source
 else:
-    from .apply_catalog import apply_catalog
     from .apply_memory import apply_memory
     from .collect import collect_source
     from .common import dump_json, load_json, load_jsonl, slugify_source_id, utc_now, write_text
@@ -97,14 +95,12 @@ def _rollback_source(
         payload_path_override=previous_payload_path,
         rollback=True,
     )
-    catalog = apply_catalog(previous_source, settings, "prod", dry_run)
     smoke = smoke_source(previous_source, settings, "prod", dry_run)
     return {
         "status": "rolled_back"
-        if all(step["status"] == "ok" for step in [memory, catalog, smoke])
+        if all(step["status"] == "ok" for step in [memory, smoke])
         else "rollback_failed",
         "memory": memory,
-        "catalog": catalog,
         "smoke": smoke,
     }
 
@@ -133,7 +129,17 @@ def run_refresh(settings: Settings, *, source_id: str | None, dry_run: bool) -> 
 
     state = _load_state(settings)
     report = {"run_at": utc_now(), "status": "ok", "sources": []}
-    for source in select_sources(sources, source_id=source_id, cadence="daily"):
+    cadence = None if source_id else "daily"
+    selected_sources = select_sources(sources, source_id=source_id, cadence=cadence)
+    if source_id and not selected_sources:
+        return {
+            "run_at": report["run_at"],
+            "status": "invalid_source",
+            "errors": [f"source not found or disabled: {source_id}"],
+            "sources": [],
+        }
+
+    for source in selected_sources:
         item = {"source_id": source["source_id"], "status": "pending"}
         previous_snapshot = state["sources"].get(source["source_id"], {}).get("success_snapshot")
         collect_source(source, settings.http_timeout_seconds, settings.raw_dir)
@@ -177,9 +183,8 @@ def run_refresh(settings: Settings, *, source_id: str | None, dry_run: bool) -> 
             continue
 
         stage_memory = apply_memory(source, settings, "staging", dry_run)
-        stage_catalog = apply_catalog(source, settings, "staging", dry_run)
         stage_smoke = smoke_source(source, settings, "staging", dry_run)
-        item["staging"] = {"memory": stage_memory, "catalog": stage_catalog, "smoke": stage_smoke}
+        item["staging"] = {"memory": stage_memory, "smoke": stage_smoke}
         if any(step["status"] != "ok" for step in item["staging"].values()):
             item["status"] = "failed"
             report["sources"].append(item)
@@ -194,9 +199,8 @@ def run_refresh(settings: Settings, *, source_id: str | None, dry_run: bool) -> 
             continue
 
         prod_memory = apply_memory(source, settings, "prod", dry_run)
-        prod_catalog = apply_catalog(source, settings, "prod", dry_run)
         prod_smoke = smoke_source(source, settings, "prod", dry_run)
-        item["prod"] = {"memory": prod_memory, "catalog": prod_catalog, "smoke": prod_smoke}
+        item["prod"] = {"memory": prod_memory, "smoke": prod_smoke}
         if any(step["status"] != "ok" for step in item["prod"].values()):
             item["rollback"] = _rollback_source(source, previous_snapshot, settings, dry_run)
             item["status"] = item["rollback"]["status"]

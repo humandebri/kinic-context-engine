@@ -1,5 +1,8 @@
 # KINIC Context Runtime Plan
 
+関連文書:
+- retrieval 改善の段階計画は [retrieval_improvement_plan.md](/Users/0xhude/Desktop/work/KINIC%20Context%20Engine/retrieval_improvement_plan.md) で別管理する
+
 ## 1. 目的
 KINIC Memory を単なる個人向け RAG ではなく、`source` ごとに分離された canister 群から必要な文脈だけを集め、CLI / MCP から再利用できる `context runtime` に拡張する。
 目標は「検索結果」ではなく、LLM や agent がそのまま使える `evidence pack` を返すこと。
@@ -27,15 +30,19 @@ KINIC Memory を単なる個人向け RAG ではなく、`source` ごとに分�
 - provenance と contradiction warning を必須にする
 
 ## 4. システム構成
-### 4.1 Registry Canister
+以後の主表記は `Catalog/Resolution Layer` と `Hybrid Retrieval & Pack Layer` とする。
+`L0 / L1 / L2` は補助的な説明用レイヤとしてのみ扱い、物理的な canister 分割とは 1:1 に固定しない。
+
+### 4.1 Catalog/Resolution Layer
+補助表記:
+- `L0 Registry Layer`
+- `L1 Resolve Layer`
+
 責務:
 - `source_id` と `canister_id` の対応管理
 - alias 解決
 - source 種別、trust level、version 対応状況の管理
 - freshness policy、language、health 情報の公開
-
-### 4.2 Resolver / Router Canister
-責務:
 - query の intent 判定
 - entity 抽出
 - source 候補の選定
@@ -46,7 +53,10 @@ KINIC Memory を単なる個人向け RAG ではなく、`source` ごとに分�
 - ここは vector search ではなく routing を担当する
 - 候補 canister は原則 `3〜5件`、探索枠を含めても `5〜7件` 程度に抑える
 
-### 4.3 Source Canister
+主な実体:
+- catalog canister
+
+### 4.2 Source Canister
 責務:
 - source 内検索
 - metadata / version filter
@@ -63,8 +73,12 @@ KINIC Memory を単なる個人向け RAG ではなく、`source` ごとに分�
 方針:
 - `Next.js v15` のような version は canister を分けず metadata で扱う
 - source ごとに parser と ranking signal を調整する
+- `Source canister` 自体は `Catalog/Resolution Layer` には吸収せず、hybrid retrieval の実行対象として扱う
 
-### 4.4 Aggregator / Pack Builder
+### 4.3 Hybrid Retrieval & Pack Layer
+補助表記:
+- `L2 Retrieval & Pack Layer`
+
 責務:
 - 並列 query 実行
 - cross-source rerank
@@ -73,8 +87,17 @@ KINIC Memory を単なる個人向け RAG ではなく、`source` ごとに分�
 - stale warning 生成
 - token budget 内への圧縮
 - final evidence pack 生成
+- resolved source 数、queried canister 数、returned snippet 数、estimated token 数、stage latency の観測
 
-### 4.5 User Memory Canister
+位置づけ:
+- source canister を呼び出す hybrid retrieval / orchestration layer として振る舞う
+- `query <source_id>` の直指定は inspection path としてここへ直接入る
+
+主な実体:
+- query 実行器
+- aggregator / pack builder
+
+### 4.4 User Memory Canister
 責務:
 - 個人メモリの ingest / search / pin / forget
 - namespace 管理
@@ -120,6 +143,15 @@ KINIC Memory を単なる個人向け RAG ではなく、`source` ごとに分�
 {
   "query": "protect route in next.js with supabase auth",
   "resolved_sources": ["/vercel/next.js", "/supabase/auth"],
+  "resolved_source_details": [
+    {
+      "source_id": "/vercel/next.js",
+      "title": "Next.js Docs",
+      "score": 1.2,
+      "reasons": ["matched alias `next`"],
+      "queried": true
+    }
+  ],
   "evidence": [
     {
       "source_id": "/vercel/next.js",
@@ -134,16 +166,39 @@ KINIC Memory を単なる個人向け RAG ではなく、`source` ごとに分�
   ],
   "warnings": [],
   "pack_summary": "...",
-  "token_budget": 3000
+  "token_budget": 3000,
+  "metrics": {
+    "resolved_sources_count": 4,
+    "queried_canisters_count": 3,
+    "returned_snippets_count": 5,
+    "selected_evidence_count": 2,
+    "estimated_pack_tokens": 180,
+    "empty_source_count": 0,
+    "source_error_count": 0,
+    "resolve_ms": 2,
+    "query_ms_total": 8,
+    "pack_ms_total": 11
+  }
 }
 ```
 
 ## 6. Query フロー
-1. `resolve`: query から intent / entities / candidate sources を決める
-2. `select`: top-k source と exploratory source を決める
-3. `parallel query`: 選ばれた canister に並列問い合わせする
-4. `merge`: rerank / dedup / contradiction check を行う
-5. `pack`: evidence pack に整形して返す
+通常の `resolve` / `pack` フロー:
+1. `Catalog/Resolution lookup`: catalog から source metadata / aliases / canister 対応を引く
+2. `Catalog/Resolution select`: query から candidate sources を決め、fan-out を絞る
+3. `Hybrid Retrieval`: 選ばれた source canister に `hybrid_query` を並列実行する
+4. `Pack`: rerank / dedup / contradiction check / token budget 圧縮を行う
+5. `Metrics`: retrieval 数、token 推定、latency を evidence pack に記録する
+
+benchmark 比較:
+- deterministic と PocketIC の両方で同じ `BenchmarkSuiteReport` JSON schema を使う
+- 人間向けの差分確認は同じ report から生成する Markdown summary を使う
+- この Markdown summary では `scenario` を `検証ケース` として表示する
+- 検証の主眼は、fan-out 数と token 消費を減らしつつ evidence の質を落とさないこと
+
+`query <source_id>` の直指定フロー:
+1. source ID から対象 canister を確定する
+2. `Hybrid Retrieval`: 指定 source canister に対して直接 retrieval を実行する
 
 ## 7. CLI / MCP の最小スコープ
 CLI:
@@ -269,6 +324,7 @@ off-chain / edge に置くもの:
 - median latency
 - token efficiency
 - contradiction detection rate
+- benchmark report stability across deterministic and PocketIC runs
 
 ## 12. 直近の実装タスク
 1. `source registry` の Candid と Rust interface を定義する
@@ -277,6 +333,7 @@ off-chain / edge に置くもの:
 4. `evidence pack` の JSON schema を固定する
 5. `kinic resolve/query/pack` の CLI 仕様を決める
 6. MVP source として `Next.js / Supabase / React` の 3 source を載せる
+7. deterministic benchmark と PocketIC benchmark を同一 report schema で比較できるようにする
 
 ## 13. 未確定事項
 - resolver を rule-based で始めるか、軽量 classifier を併用するか
@@ -287,5 +344,6 @@ off-chain / edge に置くもの:
 
 ## 14. 現時点の結論
 進む方向は妥当です。
-ただし勝ち筋は `source ごとの canister 分割` そのものではなく、`resolver-based selective fan-out` と `evidence pack` にあります。
+ただし勝ち筋は `source ごとの canister 分割` そのものではなく、`Catalog/Resolution Layer` による selective fan-out と `Hybrid Retrieval & Pack Layer` による evidence pack にあります。
 最初の実装は Code Context MVP に絞るべきです。ここで解像度と再現性を証明してから、private memory と live context に広げるのが安全です。
+その際、本番 canister へ移植する前に deterministic / PocketIC の benchmark report を継続的に比較できる状態を維持することが重要です。
