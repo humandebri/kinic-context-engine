@@ -102,10 +102,6 @@ fn catalog() -> MockCatalog {
                 ],
                 trust: "official".to_string(),
                 domain: "code_docs".to_string(),
-                skill_kind: None,
-                targets: Vec::new(),
-                capabilities: Vec::new(),
-                canister_ids: vec!["aaaaa-aa".to_string(), "bbbbb-bb".to_string()],
                 supported_versions: vec!["14".to_string(), "15".to_string()],
                 retrieved_at: "2026-03-17T00:00:00Z".to_string(),
                 citations: vec![
@@ -122,10 +118,6 @@ fn catalog() -> MockCatalog {
                 aliases: vec!["supabase".to_string(), "auth".to_string()],
                 trust: "official".to_string(),
                 domain: "code_docs".to_string(),
-                skill_kind: None,
-                targets: Vec::new(),
-                capabilities: Vec::new(),
-                canister_ids: vec!["ccccc-cc".to_string()],
                 supported_versions: vec!["2026".to_string()],
                 retrieved_at: "2026-03-17T00:00:00Z".to_string(),
                 citations: vec!["https://supabase.com/docs".to_string()],
@@ -139,10 +131,6 @@ fn catalog() -> MockCatalog {
                 aliases: vec!["react".to_string(), "hooks".to_string()],
                 trust: "official".to_string(),
                 domain: "code_docs".to_string(),
-                skill_kind: None,
-                targets: Vec::new(),
-                capabilities: Vec::new(),
-                canister_ids: vec!["ddddd-dd".to_string()],
                 supported_versions: vec!["19".to_string()],
                 retrieved_at: "2026-03-17T00:00:00Z".to_string(),
                 citations: vec!["https://react.dev".to_string()],
@@ -283,7 +271,7 @@ async fn pack_merges_multiple_sources_and_records_efficiency_metrics() {
     );
     let metrics = output.metrics.expect("pack metrics should exist");
     assert_eq!(metrics.resolved_sources_count, 4);
-    assert_eq!(metrics.queried_canisters_count, 3);
+    assert_eq!(metrics.queried_canisters_count, 2);
     assert_eq!(metrics.returned_snippets_count, 2);
     assert_eq!(metrics.selected_evidence_count, 2);
     assert_eq!(metrics.empty_source_count, 0);
@@ -371,7 +359,7 @@ async fn pack_respects_token_budget() {
     assert_eq!(output.pack_summary, "No evidence found for the query.");
     assert_eq!(output.token_budget, 10);
     let metrics = output.metrics.expect("pack metrics should exist");
-    assert_eq!(metrics.queried_canisters_count, 2);
+    assert_eq!(metrics.queried_canisters_count, 1);
     assert_eq!(metrics.returned_snippets_count, 1);
     assert_eq!(metrics.selected_evidence_count, 0);
     assert_eq!(metrics.estimated_pack_tokens, 0);

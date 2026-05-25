@@ -76,17 +76,13 @@ pub struct DeterministicFixture {
     pub expected_top_title: Option<String>,
 }
 
-pub fn source(source_id: &str, title: &str, canister_ids: Vec<&str>) -> SourceMetadata {
+pub fn source(source_id: &str, title: &str, _source_instances: Vec<&str>) -> SourceMetadata {
     SourceMetadata {
         source_id: source_id.to_string(),
         title: title.to_string(),
         aliases: Vec::new(),
         trust: "official".to_string(),
         domain: "code_docs".to_string(),
-        skill_kind: None,
-        targets: Vec::new(),
-        capabilities: Vec::new(),
-        canister_ids: canister_ids.into_iter().map(ToString::to_string).collect(),
         supported_versions: vec!["1".to_string()],
         retrieved_at: "2026-03-17T00:00:00Z".to_string(),
         citations: vec![format!("https://example.com{source_id}")],
@@ -160,12 +156,12 @@ pub fn baseline_report(fixture: &DeterministicFixture) -> BenchmarkStrategyResul
     let mut queried_canisters_count = 0_usize;
 
     for resolved_source in &resolved {
-        let source = fixture
+        let _source = fixture
             .catalog
             .sources
             .get(&resolved_source.source_id)
             .expect("source should exist");
-        queried_canisters_count += source.canister_ids.len();
+        queried_canisters_count += 1;
         let mut snippets = fixture
             .provider
             .responses

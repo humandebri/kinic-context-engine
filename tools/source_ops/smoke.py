@@ -1,6 +1,6 @@
 # Where: tools/source_ops/smoke.py
-# What: Read-path smoke checks for staging and production source refreshes.
-# Why: Block promotion when resolve/query/pack regress after source updates.
+# What: Read-path smoke checks for wiki-backed source refreshes.
+# Why: Block promotion when existing Kinic Wiki search/context paths regress.
 from __future__ import annotations
 
 import argparse
@@ -12,72 +12,75 @@ if __package__ in {None, ""}:
     from pathlib import Path
 
     sys.path.append(str(Path(__file__).resolve().parents[2]))
-    from tools.source_ops.common import run_command
+    from tools.source_ops.common import run_command, slugify_source_id
     from tools.source_ops.config import Settings, load_settings
     from tools.source_ops.registry import load_registry, select_sources
 else:
-    from .common import run_command
+    from .common import run_command, slugify_source_id
     from .config import Settings, load_settings
     from .registry import load_registry, select_sources
 
 
 def _cli_env(settings: Settings, environment: str) -> dict[str, str]:
     return {
-        "KINIC_CONTEXT_CATALOG_CANISTER_ID": getattr(settings, f"{environment}_catalog_canister_id"),
-        "KINIC_CONTEXT_IC_HOST": getattr(settings, f"{environment}_ic_host"),
-        "KINIC_CONTEXT_FETCH_ROOT_KEY": "true"
-        if getattr(settings, f"{environment}_fetch_root_key")
-        else "false",
+        "VFS_DATABASE_ID": getattr(settings, f"{environment}_database_id"),
     }
 
 
 def _command(settings: Settings, args: list[str]) -> list[str]:
-    return shlex.split(settings.cli_bin) + args
+    return shlex.split(settings.wiki_cli_bin) + args
+
+
+def _source_slug(source_id: object) -> str:
+    return slugify_source_id(str(source_id))
 
 
 def smoke_source(source: dict[str, object], settings: Settings, environment: str, dry_run: bool) -> dict[str, object]:
     env = _cli_env(settings, environment)
     queries = source["smoke_queries"]
-    resolve = run_command(
-        _command(settings, ["resolve", queries["resolve"]]),
+    search = run_command(
+        _command(settings, ["search-remote", queries["query"], "--prefix", "/Wiki/sources", "--json"]),
         env=env,
         dry_run=dry_run,
     )
-    query = run_command(
-        _command(settings, ["query", source["source_id"], queries["query"]]),
-        env=env,
-        dry_run=dry_run,
-    )
-    pack = run_command(
-        _command(settings, ["pack", queries["pack"]]),
+    context = run_command(
+        _command(
+            settings,
+            [
+                "read-node-context",
+                "--path",
+                f"/Wiki/sources/{_source_slug(source['source_id'])}/index.md",
+                "--link-limit",
+                "20",
+                "--json",
+            ],
+        ),
         env=env,
         dry_run=dry_run,
     )
 
     if dry_run:
-        return {"source_id": source["source_id"], "environment": environment, "status": "ok", "checks": [resolve, query, pack]}
+        return {"source_id": source["source_id"], "environment": environment, "status": "ok", "checks": [search, context]}
 
     failures = []
-    resolve_json = json.loads(resolve["stdout"]) if resolve["exit_code"] == 0 else {}
-    query_json = json.loads(query["stdout"]) if query["exit_code"] == 0 else {}
-    pack_json = json.loads(pack["stdout"]) if pack["exit_code"] == 0 else {}
-    if resolve["exit_code"] != 0 or source["source_id"] not in [item["source_id"] for item in resolve_json.get("candidate_sources", [])]:
-        failures.append("resolve")
-    if query["exit_code"] != 0 or not query_json.get("snippets"):
-        failures.append("query")
-    if query_json.get("snippets"):
-        snippet = query_json["snippets"][0]
-        if not str(snippet.get("citation", "")).startswith(("http://", "https://", "file://")):
-            failures.append("query-citation")
-    if pack["exit_code"] != 0 or not pack_json.get("evidence"):
-        failures.append("pack")
+    search_json = json.loads(search["stdout"]) if search["exit_code"] == 0 else []
+    context_json = json.loads(context["stdout"]) if context["exit_code"] == 0 else {}
+    if search["exit_code"] != 0 or not search_json:
+        failures.append("search")
+    if context["exit_code"] != 0 or context_json.get("node", {}).get("path") is None:
+        failures.append("read-node-context")
+    if context["exit_code"] != 0 or not any(
+        str(item.get("target_path", "")).startswith("/Sources/raw/")
+        for item in context_json.get("outgoing_links", [])
+    ):
+        failures.append("source-evidence")
 
     return {
         "source_id": source["source_id"],
         "environment": environment,
         "status": "ok" if not failures else "failed",
         "failures": failures,
-        "checks": [resolve, query, pack],
+        "checks": [search, context],
     }
 
 

@@ -4,14 +4,13 @@
 use anyhow::Result;
 use clap::Parser;
 use kinic_context_cli::{
-    catalog::IcSourceCatalog,
+    catalog::WikiCliSourceCatalog,
     cli::{Cli, Command},
     config::ReadConfig,
     engine::ContextEngine,
     output::render_json,
-    provider::IcSourceQueryProvider,
+    provider::WikiCliSourceQueryProvider,
 };
-use kinic_context_core::client::QueryClient;
 use kinic_context_core::types::FilterSourcesArgs;
 
 #[tokio::main]
@@ -59,10 +58,10 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn load_engine() -> Result<ContextEngine<IcSourceCatalog, IcSourceQueryProvider>> {
+async fn load_engine() -> Result<ContextEngine<WikiCliSourceCatalog, WikiCliSourceQueryProvider>> {
     let config = ReadConfig::from_env()?;
-    let client = QueryClient::new(&config.ic_host, config.fetch_root_key).await?;
-    let catalog = IcSourceCatalog::new(client.clone(), config.catalog_canister_id);
-    let provider = IcSourceQueryProvider::new(client);
+    let catalog =
+        WikiCliSourceCatalog::new(config.wiki_cli_bin.clone(), config.database_id.clone());
+    let provider = WikiCliSourceQueryProvider::new(config.wiki_cli_bin, config.database_id);
     Ok(ContextEngine::new(catalog, provider))
 }

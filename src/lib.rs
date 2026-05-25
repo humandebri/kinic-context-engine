@@ -13,3 +13,5 @@ pub mod model;
 pub mod output;
 pub mod pack;
 pub mod provider;
+pub(crate) mod wiki_cli;
+pub(crate) mod wiki_metadata;

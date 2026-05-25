@@ -17,7 +17,6 @@ REQUIRED_SOURCE_FIELDS = [
     "discovery_urls",
     "normalization_profile",
     "catalog_metadata",
-    "memory_targets",
     "cadence",
     "version_strategy",
     "extraction_hints",
@@ -39,15 +38,11 @@ def validate_registry_entry(source: dict[str, Any]) -> list[str]:
             errors.append(f"{source_id}: missing `{field}`")
 
     metadata = source.get("catalog_metadata", {})
-    memory_targets = source.get("memory_targets", {})
     smoke_queries = source.get("smoke_queries", {})
     extraction_hints = source.get("extraction_hints", {})
     for field in ["title", "aliases", "domain", "trust", "supported_versions", "citations"]:
         if field not in metadata:
             errors.append(f"{source_id}: catalog_metadata missing `{field}`")
-    for field in ["staging_canister_ids", "prod_canister_ids"]:
-        if field not in memory_targets:
-            errors.append(f"{source_id}: memory_targets missing `{field}`")
     for field in ["resolve", "query", "pack"]:
         if field not in smoke_queries:
             errors.append(f"{source_id}: smoke_queries missing `{field}`")

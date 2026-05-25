@@ -22,10 +22,6 @@
       "citations": ["https://nextjs.org/docs", "https://nextjs.org/docs/app/building-your-application/upgrading"],
       "retrieved_at": "2026-03-18T00:00:00Z"
     },
-    "memory_targets": {
-      "staging_canister_ids": [],
-      "prod_canister_ids": []
-    },
     "cadence": "daily",
     "version_strategy": "latest_supported_version",
     "extraction_hints": {
@@ -61,10 +57,6 @@
       "citations": ["https://supabase.com/docs"],
       "retrieved_at": "2026-03-18T00:00:00Z"
     },
-    "memory_targets": {
-      "staging_canister_ids": [],
-      "prod_canister_ids": []
-    },
     "cadence": "daily",
     "version_strategy": "latest_supported_version",
     "extraction_hints": {
@@ -99,10 +91,6 @@
       "supported_versions": ["19"],
       "citations": ["https://react.dev"],
       "retrieved_at": "2026-03-18T00:00:00Z"
-    },
-    "memory_targets": {
-      "staging_canister_ids": [],
-      "prod_canister_ids": []
     },
     "cadence": "daily",
     "version_strategy": "latest_supported_version",

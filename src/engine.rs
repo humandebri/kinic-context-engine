@@ -81,7 +81,8 @@ where
             .await?;
         let resolve_ms = elapsed_ms(resolve_started_at);
         let resolved_sources_count = resolved_candidates.len();
-        let selected_sources = select_sources_for_pack(&resolved_candidates, max_sources, max_tokens);
+        let selected_sources =
+            select_sources_for_pack(&resolved_candidates, max_sources, max_tokens);
         let resolved_source_details =
             build_resolved_source_details(&resolved_candidates, &selected_sources);
         let source_ids: Vec<String> = selected_sources
@@ -229,7 +230,7 @@ where
                 match catalog.get_source(&source_id).await {
                     Ok(source) => {
                         let started_at = Instant::now();
-                        let queried_canisters_count = source.canister_ids.len();
+                        let queried_canisters_count = 1;
                         match provider.query(source, &query, None, source_top_k).await {
                             Ok(snippets) => {
                                 let returned_snippets = snippets.len();
@@ -338,9 +339,7 @@ impl PackSourceOutcome {
 
     fn query_ms(&self) -> u64 {
         match self {
-            Self::QueryFailed { query_ms, .. } | Self::QuerySucceeded { query_ms, .. } => {
-                *query_ms
-            }
+            Self::QueryFailed { query_ms, .. } | Self::QuerySucceeded { query_ms, .. } => *query_ms,
         }
     }
 }

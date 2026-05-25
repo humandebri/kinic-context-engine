@@ -1,12 +1,12 @@
 // Where: src/provider.rs
-// What: Read-only source querying backed by the hybrid canister query API.
-// Why: Keep query embedding generation in the CLI while source canisters own trigram/vector fusion.
-use anyhow::{Result, anyhow};
-use kinic_context_core::{client::QueryClient, memory, types::{HybridQueryRequest, HybridSearchResult}};
+// What: Source querying backed by kinic-vfs-cli search.
+// Why: Keep retrieval on the existing wiki canister API instead of source canisters.
+use anyhow::Result;
 
 use crate::{
-    embedding::EmbeddingClient,
+    catalog::{run_search, source_prefix},
     model::{SourceMetadata, SourceSnippet},
+    wiki_metadata::{is_docs_chunk_path, read_node_metadata},
 };
 
 #[allow(async_fn_in_trait)]
@@ -21,31 +21,21 @@ pub trait SourceQueryProvider: Send + Sync {
 }
 
 #[derive(Clone)]
-pub struct IcSourceQueryProvider {
-    client: QueryClient,
-    embedding_client: EmbeddingClient,
-    fixed_embedding: Option<Vec<f32>>,
+pub struct WikiCliSourceQueryProvider {
+    cli_bin: String,
+    database_id: String,
 }
 
-impl IcSourceQueryProvider {
-    pub fn new(client: QueryClient) -> Self {
+impl WikiCliSourceQueryProvider {
+    pub fn new(cli_bin: String, database_id: String) -> Self {
         Self {
-            client,
-            embedding_client: EmbeddingClient::from_env(),
-            fixed_embedding: None,
-        }
-    }
-
-    pub fn with_fixed_embedding(client: QueryClient, embedding: Vec<f32>) -> Self {
-        Self {
-            client,
-            embedding_client: EmbeddingClient::from_env(),
-            fixed_embedding: Some(embedding),
+            cli_bin,
+            database_id,
         }
     }
 }
 
-impl SourceQueryProvider for IcSourceQueryProvider {
+impl SourceQueryProvider for WikiCliSourceQueryProvider {
     async fn query(
         &self,
         source: SourceMetadata,
@@ -53,65 +43,61 @@ impl SourceQueryProvider for IcSourceQueryProvider {
         version: Option<&str>,
         top_k: usize,
     ) -> Result<Vec<SourceSnippet>> {
-        if source.canister_ids.is_empty() {
-            return Err(anyhow!(
-                "source `{}` is missing canister_ids",
-                source.source_id
-            ));
-        }
-
-        let embedding = match &self.fixed_embedding {
-            Some(embedding) => embedding.clone(),
-            None => self.embedding_client.embed_query(query).await?,
-        };
-
-        let mut snippets = Vec::new();
-        let mut errors = Vec::new();
-        for canister_id in &source.canister_ids {
-            let request = HybridQueryRequest {
-                query_text: query.to_string(),
-                query_embedding: embedding.clone(),
-                version: version.map(ToString::to_string),
-                top_k: top_k.max(1) as u32,
-                candidate_limit: None,
-                keyword_weight: None,
-                vector_weight: None,
-                filters: None,
-            };
-            match memory::hybrid_query(&self.client, canister_id, request).await {
-                Ok(results) => snippets.extend(
-                    results
-                        .into_iter()
-                        .map(|item| to_source_snippet(&source, item)),
-                ),
-                Err(error) => errors.push(format!("{canister_id}: {error}")),
+        let prefix = match version {
+            Some(version) if !version.is_empty() => {
+                format!("{}/{}", source_prefix(&source.source_id), version)
             }
+            _ => source_prefix(&source.source_id),
+        };
+        let hits = run_search(
+            &self.cli_bin,
+            &self.database_id,
+            &prefix,
+            query,
+            top_k.max(1),
+        )?;
+        let mut snippets = Vec::new();
+        for hit in hits {
+            if !is_docs_chunk_path(&hit.path) {
+                continue;
+            }
+            let Some(metadata) =
+                read_node_metadata(&self.cli_bin, &self.database_id, &hit.path, "chunk")?
+            else {
+                continue;
+            };
+            if metadata.source_id != source.source_id || metadata.chunk_id.is_none() {
+                eprintln!("skipped chunk metadata: {}", hit.path);
+                continue;
+            }
+            snippets.push(SourceSnippet {
+                source_id: source.source_id.clone(),
+                title: if metadata.title.is_empty() {
+                    source.title.clone()
+                } else {
+                    metadata.title
+                },
+                snippet: hit.snippet.unwrap_or_else(|| hit.path.clone()),
+                citation: if metadata.citation.is_empty() {
+                    hit.path
+                } else {
+                    metadata.citation
+                },
+                trust: if metadata.trust.is_empty() {
+                    source.trust.clone()
+                } else {
+                    metadata.trust
+                },
+                retrieved_at: if metadata.retrieved_at.is_empty() {
+                    source.retrieved_at.clone()
+                } else {
+                    metadata.retrieved_at
+                },
+                version: metadata.version.or_else(|| version.map(ToString::to_string)),
+                stale: false,
+                score: hit.score.unwrap_or(0.0),
+            });
         }
-
-        if snippets.is_empty() && !errors.is_empty() {
-            return Err(anyhow!(
-                "memory search failed for source `{}`: {}",
-                source.source_id,
-                errors.join("; ")
-            ));
-        }
-
-        snippets.sort_by(|left, right| right.score.total_cmp(&left.score));
-        snippets.truncate(top_k.max(1));
         Ok(snippets)
-    }
-}
-
-fn to_source_snippet(source: &SourceMetadata, item: HybridSearchResult) -> SourceSnippet {
-    SourceSnippet {
-        source_id: source.source_id.clone(),
-        title: item.title,
-        snippet: item.snippet,
-        citation: item.citation,
-        trust: source.trust.clone(),
-        retrieved_at: source.retrieved_at.clone(),
-        version: item.version,
-        stale: false,
-        score: item.score,
     }
 }

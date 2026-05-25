@@ -1,6 +1,6 @@
 # Where: tools/source_ops/config.py
-# What: Runtime configuration loader for source collection and refresh automation.
-# Why: Centralize paths, thresholds, command templates, and environment-specific settings.
+# What: Runtime configuration loader for source collection and wiki refresh automation.
+# Why: Centralize paths, thresholds, and environment-specific wiki CLI settings.
 from __future__ import annotations
 
 import os
@@ -29,13 +29,12 @@ class Settings:
     write_timeout_seconds: int
     max_changed_records: int
     max_deleted_records: int
-    memory_writer_template: str
-    memory_rollback_template: str
-    memory_reset_dim: int
+    wiki_cli_bin: str
+    wiki_nodes_dir: Path
     kinic_identity: str
     cli_bin: str
-    staging_catalog_canister_id: str
-    prod_catalog_canister_id: str
+    staging_database_id: str
+    prod_database_id: str
     staging_ic_host: str
     prod_ic_host: str
     staging_fetch_root_key: bool
@@ -46,11 +45,6 @@ class Settings:
 
 def load_settings() -> Settings:
     artifacts_dir = ensure_dir(SOURCE_OPS_DIR / "artifacts")
-    default_writer = (
-        "python3 tools/source_ops/kinic_writer.py "
-        "--env {environment} --identity {identity} --memory-id {memory_id} "
-        "--payload-path {payload_path} --tag {tag}"
-    )
     return Settings(
         registry_path=SOURCE_OPS_DIR / "registry.yaml",
         raw_dir=ensure_dir(artifacts_dir / "raw"),
@@ -62,16 +56,15 @@ def load_settings() -> Settings:
         write_timeout_seconds=int(os.getenv("SOURCE_OPS_WRITE_TIMEOUT", "180")),
         max_changed_records=int(os.getenv("SOURCE_OPS_MAX_CHANGED_RECORDS", "200")),
         max_deleted_records=int(os.getenv("SOURCE_OPS_MAX_DELETED_RECORDS", "25")),
-        memory_writer_template=os.getenv("SOURCE_OPS_MEMORY_WRITER_TEMPLATE", default_writer),
-        memory_rollback_template=os.getenv("SOURCE_OPS_MEMORY_ROLLBACK_TEMPLATE", default_writer),
-        memory_reset_dim=int(os.getenv("SOURCE_OPS_MEMORY_RESET_DIM", "1024")),
+        wiki_cli_bin=os.getenv("SOURCE_OPS_WIKI_CLI_BIN", "kinic-vfs-cli"),
+        wiki_nodes_dir=ensure_dir(artifacts_dir / "wiki_nodes"),
         kinic_identity=os.getenv("SOURCE_OPS_KINIC_IDENTITY", "default"),
         cli_bin=os.getenv(
             "SOURCE_OPS_CLI_BIN",
             "cargo run --quiet --bin kinic-context-cli --",
         ),
-        staging_catalog_canister_id=os.getenv("SOURCE_OPS_STAGING_CATALOG_CANISTER_ID", ""),
-        prod_catalog_canister_id=os.getenv("SOURCE_OPS_PROD_CATALOG_CANISTER_ID", ""),
+        staging_database_id=os.getenv("SOURCE_OPS_STAGING_DATABASE_ID", ""),
+        prod_database_id=os.getenv("SOURCE_OPS_PROD_DATABASE_ID", ""),
         staging_ic_host=os.getenv("SOURCE_OPS_STAGING_IC_HOST", "http://127.0.0.1:8000"),
         prod_ic_host=os.getenv("SOURCE_OPS_PROD_IC_HOST", "https://ic0.app"),
         staging_fetch_root_key=_env_flag("SOURCE_OPS_STAGING_FETCH_ROOT_KEY", True),

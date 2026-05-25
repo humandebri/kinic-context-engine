@@ -37,9 +37,10 @@ Output:
 - one JSON payload per chunk
 - every payload follows the canonical schema in `tools/source_payload_schema.md`
 
-Planned helper name:
+Helper name:
 
-- `tools/build_source_payloads.*`
+- `tools/source_ops/register_source.py` for source registration
+- `tools/source_ops/collect.py` and `tools/source_ops/normalize.py` for payload build
 
 Responsibilities:
 
@@ -108,25 +109,16 @@ No new write CLI is introduced in this repo.
 - do not flatten to plain text before insert
 - the searchable text should remain part of the JSON, typically through `snippet` and `content`
 
-### Section summary behavior
+### Wiki node write behavior
 
-- group payloads by `section` and `version`
-- derive one section summary per group before document inserts
-- call `insert_section` before `insert_document`
-- use the same embedding model and prefix rule as document indexing
+- write one raw source node under `/Sources/raw/<source_slug>/<source_slug>.md`
+- write one source index under `/Wiki/sources/<source_slug>/index.md`
+- write one docs chunk node per payload under `/Wiki/sources/<source_slug>/<version>/<slug>.md`
+- include a markdown link to the raw source node in every docs chunk so existing `source_evidence` can recover provenance
 
 ### Tagging
 
-If the write API requires a tag, use a deterministic tag per source/version pair.
-
-Recommended pattern:
-
-- `source:<source_id>:<version>`
-
-Examples:
-
-- `source:/vercel/next.js:15`
-- `source:/supabase/docs:2026`
+Store source tags in node `metadata_json`. Do not create canister-specific tags.
 
 ## Operational Rules
 
