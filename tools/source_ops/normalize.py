@@ -1,6 +1,6 @@
 # Where: tools/source_ops/normalize.py
 # What: Normalize raw collected artifacts into canonical source payload JSONL.
-# Why: Keep memory payloads deterministic and aligned with the documented schema.
+# Why: Keep source payloads deterministic and aligned with the documented schema.
 from __future__ import annotations
 
 import argparse
@@ -15,16 +15,18 @@ if __package__ in {None, ""}:
     sys.path.append(str(Path(__file__).resolve().parents[2]))
     from tools.source_ops.common import clean_text, dump_json, dump_jsonl, load_json, slugify_source_id, summarize_text
     from tools.source_ops.config import load_settings
+    from tools.source_ops.markdown import markdown_sections, split_markdown, split_paragraph
     from tools.source_ops.registry import load_registry, select_sources
 else:
     from .common import clean_text, dump_json, dump_jsonl, load_json, slugify_source_id, summarize_text
     from .config import load_settings
+    from .markdown import markdown_sections, split_markdown, split_paragraph
     from .registry import load_registry, select_sources
 
 
 CHUNK_CHAR_LIMIT = 900
-MIN_HTML_TEXT_RATIO = 0.02
 MIN_EXTRACTED_CHARS = 160
+MARKDOWN_TYPES = {"llms_full", "repo_docs"}
 
 
 def _extract_title(body: str, fallback: str) -> str:
@@ -42,7 +44,6 @@ def _default_version(source: dict[str, object]) -> str | None:
 
 def _normalized_meta_path(normalized_dir: Path, source_id: str) -> Path:
     return normalized_dir / f"{slugify_source_id(source_id)}.meta.json"
-
 
 def load_normalization_meta(normalized_dir: Path, source_id: str) -> dict[str, object]:
     path = _normalized_meta_path(normalized_dir, source_id)
@@ -97,7 +98,7 @@ class StructuredHTMLExtractor(HTMLParser):
             self._current_heading = (attributes.get("id") or "", tag)
             self._current_text = []
             return
-        if tag in {"p", "li", "pre", "code"}:
+        if tag in {"p", "li", "pre"}:
             self._flush_body()
             self._current_heading = self._current_heading or ("", "p")
             self._current_text = []
@@ -117,7 +118,7 @@ class StructuredHTMLExtractor(HTMLParser):
             self._current_heading = None
             self._current_text = []
             return
-        if tag in {"p", "li", "pre", "code"}:
+        if tag in {"p", "li", "pre"}:
             self._flush_body()
             return
         if tag in {"h1", "h2", "h3", "h4", "h5", "h6"}:
@@ -150,25 +151,6 @@ class StructuredHTMLExtractor(HTMLParser):
         self._current_text = []
 
 
-def _split_paragraph(paragraph: str, limit: int) -> list[str]:
-    if len(paragraph) <= limit:
-        return [paragraph]
-    sentences = re.split(r"(?<=[.!?])\s+", paragraph)
-    chunks: list[str] = []
-    current = ""
-    for sentence in sentences:
-        candidate = f"{current} {sentence}".strip() if current else sentence
-        if len(candidate) <= limit:
-            current = candidate
-            continue
-        if current:
-            chunks.append(current)
-        current = sentence
-    if current:
-        chunks.append(current)
-    return chunks
-
-
 def _structured_sections(
     body: str,
     *,
@@ -184,30 +166,42 @@ def _structured_sections(
     return parser.title, parser.sections, clean_text(" ".join(parser.raw_text_parts)), warnings
 
 
-def _normalize_item(
+def _item_sections(
     source: dict[str, object],
     item: dict[str, object],
-    collected_at: str,
-) -> tuple[list[dict[str, object]], list[str]]:
-    body = item["body"]
+) -> tuple[str | None, list[dict[str, object]], str, list[str], bool]:
+    body = str(item["body"])
+    source_type = str(item.get("source_type", "docs_site"))
+    content_type = str(item.get("content_type", ""))
+    is_html = content_type.startswith("text/html")
+    if not is_html or source_type in MARKDOWN_TYPES:
+        title, sections, all_text, warnings = markdown_sections(body, str(item["label"]))
+        return title, sections, all_text, warnings, False
     hints = source.get("extraction_hints", {})
     title, sections, all_text, warnings = _structured_sections(
         body,
         content_roots=hints.get("content_roots", []),
         drop_selectors=hints.get("drop_selectors", []),
     )
+    return title, sections, all_text, warnings, True
+
+
+def _normalize_item(
+    source: dict[str, object],
+    item: dict[str, object],
+    collected_at: str,
+) -> tuple[list[dict[str, object]], list[str]]:
+    body = str(item["body"])
+    hints = source.get("extraction_hints", {})
+    title, sections, all_text, warnings, is_html = _item_sections(source, item)
     if not all_text:
         all_text = clean_text(body)
         warnings.append("body_fallback_used")
-    is_html = str(item.get("content_type", "")).startswith("text/html")
     suspicious_small = is_html and len(body) >= 2000 and len(all_text) < MIN_EXTRACTED_CHARS
-    suspicious_ratio = is_html and len(body) >= 2000 and len(all_text) / max(len(body), 1) < MIN_HTML_TEXT_RATIO
-    if suspicious_small or suspicious_ratio:
+    if suspicious_small:
         raise ValueError(
             f"{source['source_id']}: extracted text from `{item['url']}` looks too small; upstream HTML may have changed"
         )
-    if not is_html:
-        warnings.append("non_html_content_type")
 
     payloads: list[dict[str, object]] = []
     fallback_title = title or _extract_title(body, source["catalog_metadata"]["title"])
@@ -219,7 +213,11 @@ def _normalize_item(
     for section_index, section in enumerate(sections):
         heading = clean_text(str(section.get("heading", ""))) or fallback_title
         chunk_limit = int(hints.get("chunk_target_chars", CHUNK_CHAR_LIMIT))
-        for chunk_index, chunk in enumerate(_split_paragraph(str(section["text"]), chunk_limit)):
+        chunks = split_paragraph(str(section["text"]), chunk_limit) if is_html else split_markdown(str(section["text"]), chunk_limit)
+        for chunk_index, chunk in enumerate(chunks):
+            snippet = summarize_text(chunk)
+            if not snippet:
+                continue
             citation = base_citation
             heading_id = str(section.get("heading_id", "")).strip()
             if heading_id and "#" not in citation:
@@ -229,7 +227,7 @@ def _normalize_item(
                 {
                     "source_id": source["source_id"],
                     "title": summarize_text(suffix, limit=120),
-                    "snippet": summarize_text(chunk),
+                    "snippet": snippet,
                     "citation": citation,
                     "version": _default_version(source),
                     "content": chunk,
@@ -238,6 +236,10 @@ def _normalize_item(
                     "retrieved_at": collected_at,
                     "chunk_index": chunk_index,
                     "section_index": section_index,
+                    "source_type": item.get("source_type", "docs_site"),
+                    "target_label": item.get("target_label", item.get("label", "")),
+                    "coverage_role": item.get("coverage_role", ""),
+                    "upstream_url": item.get("final_url") or item["url"],
                 }
             )
     return payloads, sorted(set(warnings))
@@ -249,13 +251,19 @@ def normalize_source(source: dict[str, object], raw_dir: Path, normalized_dir: P
     payloads: list[dict[str, object]] = []
     warnings: list[dict[str, object]] = []
     for item in raw["items"]:
-        if item.get("role") != "public_urls":
-            continue
         item_payloads, item_warnings = _normalize_item(source, item, raw["collected_at"])
         payloads.extend(item_payloads)
         for warning in item_warnings:
             warnings.append({"url": item.get("final_url") or item["url"], "kind": warning})
-
+    unique_payloads: list[dict[str, object]] = []
+    seen_payloads: set[tuple[object, object, object, object]] = set()
+    for payload in payloads:
+        key = (payload["citation"], payload["section_index"], payload["chunk_index"], payload["content"])
+        if key in seen_payloads:
+            continue
+        seen_payloads.add(key)
+        unique_payloads.append(payload)
+    payloads = unique_payloads
     payloads.sort(key=lambda payload: (payload["citation"], payload["section_index"], payload["chunk_index"]))
     output_path = normalized_dir / f"{slugify_source_id(source['source_id'])}.jsonl"
     dump_jsonl(output_path, payloads)

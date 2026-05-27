@@ -3,30 +3,101 @@
     "source_id": "/vercel/next.js",
     "kind": "docs",
     "enabled": true,
-    "public_urls": [
-      {"label": "middleware", "url": "https://nextjs.org/docs/app/building-your-application/routing/middleware"},
-      {"label": "auth", "url": "https://nextjs.org/docs/app/building-your-application/authentication"},
-      {"label": "upgrade", "url": "https://nextjs.org/docs/app/building-your-application/upgrading"}
-    ],
-    "discovery_urls": [
-      {"label": "docs-index", "url": "https://nextjs.org/docs"},
-      {"label": "release-notes", "url": "https://nextjs.org/blog"}
+    "crawl_targets": [
+      {
+        "label": "llms-full",
+        "source_type": "llms_full",
+        "crawl_strategy": "llms_full",
+        "url": "https://nextjs.org/docs/llms-full.txt",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "overview"
+      },
+      {
+        "label": "docs-sitemap",
+        "source_type": "docs_site",
+        "crawl_strategy": "sitemap",
+        "url": "https://nextjs.org/sitemap.xml",
+        "include_prefixes": [
+          "https://nextjs.org/docs"
+        ],
+        "exclude_prefixes": [
+          "https://nextjs.org/docs/pages"
+        ],
+        "max_pages": 40,
+        "coverage_role": "api_reference"
+      },
+      {
+        "label": "release-notes",
+        "source_type": "changelog",
+        "crawl_strategy": "sitemap",
+        "url": "https://nextjs.org/sitemap.xml",
+        "include_prefixes": [
+          "https://nextjs.org/blog"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 10,
+        "coverage_role": "release_notes"
+      },
+      {
+        "label": "upgrade-guide",
+        "source_type": "docs_site",
+        "crawl_strategy": "explicit_urls",
+        "url": "https://nextjs.org/docs/app/guides/upgrading/version-16",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "migration"
+      },
+      {
+        "label": "examples",
+        "source_type": "examples",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/vercel/next.js/tree/canary/examples",
+        "include_prefixes": [
+          "examples"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "examples"
+      }
     ],
     "normalization_profile": "docs_html",
     "catalog_metadata": {
       "title": "Next.js Docs",
-      "aliases": ["next", "nextjs", "next.js", "middleware", "next migration", "nextjs migration"],
+      "aliases": [
+        "next",
+        "nextjs",
+        "next.js",
+        "middleware",
+        "next migration",
+        "nextjs migration"
+      ],
       "domain": "code_docs",
       "trust": "official",
-      "supported_versions": ["14", "15"],
-      "citations": ["https://nextjs.org/docs", "https://nextjs.org/docs/app/building-your-application/upgrading"],
-      "retrieved_at": "2026-03-18T00:00:00Z"
+      "supported_versions": [
+        "16"
+      ],
+      "citations": [
+        "https://nextjs.org/docs",
+        "https://nextjs.org/docs/app/building-your-application/upgrading"
+      ],
+      "retrieved_at": "2026-05-25T00:00:00Z"
     },
     "cadence": "daily",
     "version_strategy": "latest_supported_version",
     "extraction_hints": {
-      "content_roots": ["main", "article"],
-      "drop_selectors": ["nav", "header", "footer", "aside"],
+      "content_roots": [
+        "main",
+        "article"
+      ],
+      "drop_selectors": [
+        "nav",
+        "header",
+        "footer",
+        "aside"
+      ],
       "chunk_target_chars": 900
     },
     "smoke_queries": {
@@ -39,29 +110,98 @@
     "source_id": "/supabase/docs",
     "kind": "docs",
     "enabled": true,
-    "public_urls": [
-      {"label": "nextjs-auth", "url": "https://supabase.com/docs/guides/auth/server-side/nextjs"},
-      {"label": "auth-overview", "url": "https://supabase.com/docs/guides/auth"}
-    ],
-    "discovery_urls": [
-      {"label": "docs-index", "url": "https://supabase.com/docs"},
-      {"label": "changelog", "url": "https://supabase.com/changelog"}
+    "crawl_targets": [
+      {
+        "label": "llms-full",
+        "source_type": "llms_full",
+        "crawl_strategy": "llms_full",
+        "url": "https://supabase.com/llms-full.txt",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "overview"
+      },
+      {
+        "label": "docs-sitemap",
+        "source_type": "docs_site",
+        "crawl_strategy": "sitemap",
+        "url": "https://supabase.com/sitemap.xml",
+        "include_prefixes": [
+          "https://supabase.com/docs"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 40,
+        "coverage_role": "api_reference"
+      },
+      {
+        "label": "changelog",
+        "source_type": "changelog",
+        "crawl_strategy": "explicit_urls",
+        "url": "https://supabase.com/changelog",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 10,
+        "coverage_role": "release_notes"
+      },
+      {
+        "label": "auth-guides",
+        "source_type": "docs_site",
+        "crawl_strategy": "sitemap",
+        "url": "https://supabase.com/sitemap.xml",
+        "include_prefixes": [
+          "https://supabase.com/docs/guides/auth"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 40,
+        "coverage_role": "integration"
+      },
+      {
+        "label": "examples",
+        "source_type": "examples",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/supabase/supabase/tree/master/examples",
+        "include_prefixes": [
+          "examples"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "examples"
+      }
     ],
     "normalization_profile": "docs_html",
     "catalog_metadata": {
       "title": "Supabase Docs",
-      "aliases": ["supabase", "auth"],
+      "aliases": [
+        "supabase",
+        "auth",
+        "postgres",
+        "realtime",
+        "edge functions"
+      ],
       "domain": "code_docs",
       "trust": "official",
-      "supported_versions": ["2026"],
-      "citations": ["https://supabase.com/docs"],
-      "retrieved_at": "2026-03-18T00:00:00Z"
+      "supported_versions": [
+        "2026"
+      ],
+      "citations": [
+        "https://supabase.com/docs",
+        "https://supabase.com/changelog"
+      ],
+      "retrieved_at": "2026-05-25T00:00:00Z"
     },
     "cadence": "daily",
     "version_strategy": "latest_supported_version",
     "extraction_hints": {
-      "content_roots": ["main", "article"],
-      "drop_selectors": ["nav", "header", "footer", "aside"],
+      "content_roots": [
+        "main",
+        "article"
+      ],
+      "drop_selectors": [
+        "nav",
+        "header",
+        "footer",
+        "aside"
+      ],
       "chunk_target_chars": 900
     },
     "smoke_queries": {
@@ -74,35 +214,1867 @@
     "source_id": "/react/docs",
     "kind": "docs",
     "enabled": true,
-    "public_urls": [
-      {"label": "hooks", "url": "https://react.dev/reference/react"},
-      {"label": "useeffectevent", "url": "https://react.dev/reference/react/useEffectEvent"}
-    ],
-    "discovery_urls": [
-      {"label": "docs-index", "url": "https://react.dev"},
-      {"label": "blog", "url": "https://react.dev/blog"}
+    "crawl_targets": [
+      {
+        "label": "reference",
+        "source_type": "docs_site",
+        "crawl_strategy": "explicit_urls",
+        "url": "https://react.dev/reference/react",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "api_reference"
+      },
+      {
+        "label": "learn",
+        "source_type": "docs_site",
+        "crawl_strategy": "explicit_urls",
+        "url": "https://react.dev/learn",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "overview"
+      },
+      {
+        "label": "repo-docs",
+        "source_type": "repo_docs",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/reactjs/react.dev/tree/main/src/content/reference",
+        "include_prefixes": [
+          "src/content/reference"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "api_reference"
+      },
+      {
+        "label": "upgrade",
+        "source_type": "docs_site",
+        "crawl_strategy": "explicit_urls",
+        "url": "https://react.dev/blog/2024/04/25/react-19-upgrade-guide",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "migration"
+      },
+      {
+        "label": "examples",
+        "source_type": "examples",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/reactjs/react.dev/tree/main/src/content/learn",
+        "include_prefixes": [
+          "src/content/learn"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "examples"
+      }
     ],
     "normalization_profile": "docs_html",
     "catalog_metadata": {
       "title": "React Docs",
-      "aliases": ["react", "hooks"],
+      "aliases": [
+        "react",
+        "hooks",
+        "react reference"
+      ],
       "domain": "code_docs",
       "trust": "official",
-      "supported_versions": ["19"],
-      "citations": ["https://react.dev"],
-      "retrieved_at": "2026-03-18T00:00:00Z"
+      "supported_versions": [
+        "19.2"
+      ],
+      "citations": [
+        "https://react.dev",
+        "https://react.dev/reference/react"
+      ],
+      "retrieved_at": "2026-05-25T00:00:00Z"
     },
     "cadence": "daily",
     "version_strategy": "latest_supported_version",
     "extraction_hints": {
-      "content_roots": ["main", "article"],
-      "drop_selectors": ["nav", "header", "footer", "aside"],
+      "content_roots": [
+        "main",
+        "article"
+      ],
+      "drop_selectors": [
+        "nav",
+        "header",
+        "footer",
+        "aside"
+      ],
       "chunk_target_chars": 900
     },
     "smoke_queries": {
       "resolve": "react hooks",
       "query": "use effect event",
       "pack": "migrate next auth code and react hooks"
+    }
+  },
+  {
+    "source_id": "/cloudflare/workers",
+    "kind": "docs",
+    "enabled": true,
+    "crawl_targets": [
+      {
+        "label": "llms-full",
+        "source_type": "llms_full",
+        "crawl_strategy": "llms_full",
+        "url": "https://developers.cloudflare.com/workers/llms-full.txt",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "overview"
+      },
+      {
+        "label": "workers-sitemap",
+        "source_type": "docs_site",
+        "crawl_strategy": "sitemap",
+        "url": "https://developers.cloudflare.com/sitemap-index.xml",
+        "include_prefixes": [
+          "https://developers.cloudflare.com/workers/"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 40,
+        "coverage_role": "api_reference"
+      },
+      {
+        "label": "framework-guides",
+        "source_type": "docs_site",
+        "crawl_strategy": "sitemap",
+        "url": "https://developers.cloudflare.com/sitemap-index.xml",
+        "include_prefixes": [
+          "https://developers.cloudflare.com/workers/frameworks/"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "integration"
+      },
+      {
+        "label": "examples",
+        "source_type": "examples",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/cloudflare/workers-sdk/tree/main/fixtures",
+        "include_prefixes": [
+          "fixtures"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "examples"
+      }
+    ],
+    "normalization_profile": "docs_html",
+    "catalog_metadata": {
+      "title": "Cloudflare Workers Docs",
+      "aliases": [
+        "cloudflare workers",
+        "workers",
+        "durable objects",
+        "workers ai"
+      ],
+      "domain": "code_docs",
+      "trust": "official",
+      "supported_versions": [
+        "2026"
+      ],
+      "citations": [
+        "https://developers.cloudflare.com/workers/"
+      ],
+      "retrieved_at": "2026-05-25T00:00:00Z"
+    },
+    "cadence": "daily",
+    "version_strategy": "latest_supported_version",
+    "extraction_hints": {
+      "content_roots": [
+        "main",
+        "article"
+      ],
+      "drop_selectors": [
+        "nav",
+        "header",
+        "footer",
+        "aside"
+      ],
+      "chunk_target_chars": 900
+    },
+    "smoke_queries": {
+      "resolve": "cloudflare workers",
+      "query": "durable objects",
+      "pack": "deploy a worker with durable objects"
+    }
+  },
+  {
+    "source_id": "/tanstack/query",
+    "kind": "docs",
+    "enabled": true,
+    "crawl_targets": [
+      {
+        "label": "react-overview",
+        "source_type": "docs_site",
+        "crawl_strategy": "explicit_urls",
+        "url": "https://tanstack.com/query/latest/docs/framework/react/overview",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "overview"
+      },
+      {
+        "label": "repo-docs",
+        "source_type": "repo_docs",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/TanStack/query/tree/main/docs/framework/react",
+        "include_prefixes": [
+          "docs/framework/react"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "api_reference"
+      },
+      {
+        "label": "examples",
+        "source_type": "examples",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/TanStack/query/tree/main/examples/react",
+        "include_prefixes": [
+          "examples/react"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "examples"
+      }
+    ],
+    "normalization_profile": "docs_html",
+    "catalog_metadata": {
+      "title": "TanStack Query Docs",
+      "aliases": [
+        "tanstack query",
+        "react query",
+        "query cache"
+      ],
+      "domain": "code_docs",
+      "trust": "official",
+      "supported_versions": [
+        "5"
+      ],
+      "citations": [
+        "https://tanstack.com/query/latest/docs/framework/react/overview"
+      ],
+      "retrieved_at": "2026-05-25T00:00:00Z"
+    },
+    "cadence": "daily",
+    "version_strategy": "latest_supported_version",
+    "extraction_hints": {
+      "content_roots": [
+        "main",
+        "article"
+      ],
+      "drop_selectors": [
+        "nav",
+        "header",
+        "footer",
+        "aside"
+      ],
+      "chunk_target_chars": 900
+    },
+    "smoke_queries": {
+      "resolve": "tanstack query",
+      "query": "query invalidation",
+      "pack": "cache server state with tanstack query"
+    }
+  },
+  {
+    "source_id": "/vitejs/vite",
+    "kind": "docs",
+    "enabled": true,
+    "crawl_targets": [
+      {
+        "label": "vite-sitemap",
+        "source_type": "docs_site",
+        "crawl_strategy": "sitemap",
+        "url": "https://vite.dev/sitemap.xml",
+        "include_prefixes": [
+          "https://vite.dev/guide",
+          "https://vite.dev/config",
+          "https://vite.dev/plugin"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 40,
+        "coverage_role": "api_reference"
+      },
+      {
+        "label": "repo-docs",
+        "source_type": "repo_docs",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/vitejs/vite/tree/main/docs",
+        "include_prefixes": [
+          "docs"
+        ],
+        "exclude_prefixes": [
+          "docs/public"
+        ],
+        "max_pages": 30,
+        "coverage_role": "api_reference"
+      },
+      {
+        "label": "migration",
+        "source_type": "docs_site",
+        "crawl_strategy": "sitemap",
+        "url": "https://vite.dev/sitemap.xml",
+        "include_prefixes": [
+          "https://vite.dev/guide/migration"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 10,
+        "coverage_role": "migration"
+      },
+      {
+        "label": "examples",
+        "source_type": "examples",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/vitejs/vite/tree/main/playground",
+        "include_prefixes": [
+          "playground"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "examples"
+      },
+      {
+        "label": "overview",
+        "source_type": "docs_site",
+        "crawl_strategy": "explicit_urls",
+        "url": "https://vite.dev/guide/",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "overview"
+      }
+    ],
+    "normalization_profile": "docs_html",
+    "catalog_metadata": {
+      "title": "Vite Docs",
+      "aliases": [
+        "vite",
+        "vite config",
+        "vite plugin"
+      ],
+      "domain": "code_docs",
+      "trust": "official",
+      "supported_versions": [
+        "7"
+      ],
+      "citations": [
+        "https://vite.dev/guide/"
+      ],
+      "retrieved_at": "2026-05-25T00:00:00Z"
+    },
+    "cadence": "daily",
+    "version_strategy": "latest_supported_version",
+    "extraction_hints": {
+      "content_roots": [
+        "main",
+        "article"
+      ],
+      "drop_selectors": [
+        "nav",
+        "header",
+        "footer",
+        "aside"
+      ],
+      "chunk_target_chars": 900
+    },
+    "smoke_queries": {
+      "resolve": "vite config",
+      "query": "vite plugin",
+      "pack": "configure vite build"
+    }
+  },
+  {
+    "source_id": "/prisma/docs",
+    "kind": "docs",
+    "enabled": true,
+    "crawl_targets": [
+      {
+        "label": "prisma-sitemap",
+        "source_type": "docs_site",
+        "crawl_strategy": "sitemap",
+        "url": "https://www.prisma.io/sitemap.xml",
+        "include_prefixes": [
+          "https://www.prisma.io/docs"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 40,
+        "coverage_role": "api_reference"
+      },
+      {
+        "label": "repo-docs",
+        "source_type": "repo_docs",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/prisma/docs/tree/main/content",
+        "include_prefixes": [
+          "content"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "api_reference"
+      },
+      {
+        "label": "migration",
+        "source_type": "docs_site",
+        "crawl_strategy": "sitemap",
+        "url": "https://www.prisma.io/sitemap.xml",
+        "include_prefixes": [
+          "https://www.prisma.io/docs/guides/migrate"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 20,
+        "coverage_role": "migration"
+      },
+      {
+        "label": "examples",
+        "source_type": "examples",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/prisma/prisma-examples/tree/latest",
+        "include_prefixes": [
+          "typescript"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "examples"
+      },
+      {
+        "label": "overview",
+        "source_type": "docs_site",
+        "crawl_strategy": "explicit_urls",
+        "url": "https://www.prisma.io/docs",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "overview"
+      }
+    ],
+    "normalization_profile": "docs_html",
+    "catalog_metadata": {
+      "title": "Prisma Docs",
+      "aliases": [
+        "prisma",
+        "prisma client",
+        "prisma schema"
+      ],
+      "domain": "code_docs",
+      "trust": "official",
+      "supported_versions": [
+        "7"
+      ],
+      "citations": [
+        "https://www.prisma.io/docs"
+      ],
+      "retrieved_at": "2026-05-25T00:00:00Z"
+    },
+    "cadence": "daily",
+    "version_strategy": "latest_supported_version",
+    "extraction_hints": {
+      "content_roots": [
+        "main",
+        "article"
+      ],
+      "drop_selectors": [
+        "nav",
+        "header",
+        "footer",
+        "aside"
+      ],
+      "chunk_target_chars": 900
+    },
+    "smoke_queries": {
+      "resolve": "prisma client",
+      "query": "prisma schema",
+      "pack": "model postgres data with prisma"
+    }
+  },
+  {
+    "source_id": "/tailwindlabs/tailwindcss.com",
+    "kind": "docs",
+    "enabled": true,
+    "crawl_targets": [
+      {
+        "label": "installation",
+        "source_type": "docs_site",
+        "crawl_strategy": "explicit_urls",
+        "url": "https://tailwindcss.com/docs/installation",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "overview"
+      },
+      {
+        "label": "repo-docs",
+        "source_type": "repo_docs",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/tailwindlabs/tailwindcss.com/tree/main/src/app/docs",
+        "include_prefixes": [
+          "src/app/docs"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "api_reference"
+      },
+      {
+        "label": "component-reference",
+        "source_type": "docs_site",
+        "crawl_strategy": "sitemap",
+        "url": "https://tailwindcss.com/sitemap.xml",
+        "include_prefixes": [
+          "https://tailwindcss.com/docs"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 40,
+        "coverage_role": "api_reference"
+      },
+      {
+        "label": "examples",
+        "source_type": "examples",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/tailwindlabs/tailwindcss.com/tree/main/src/app/showcase",
+        "include_prefixes": [
+          "src/app/showcase"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "examples"
+      }
+    ],
+    "normalization_profile": "docs_html",
+    "catalog_metadata": {
+      "title": "Tailwind CSS Docs",
+      "aliases": [
+        "tailwind",
+        "tailwind css",
+        "utility css"
+      ],
+      "domain": "code_docs",
+      "trust": "official",
+      "supported_versions": [
+        "4"
+      ],
+      "citations": [
+        "https://tailwindcss.com/docs"
+      ],
+      "retrieved_at": "2026-05-25T00:00:00Z"
+    },
+    "cadence": "daily",
+    "version_strategy": "latest_supported_version",
+    "extraction_hints": {
+      "content_roots": [
+        "main",
+        "article"
+      ],
+      "drop_selectors": [
+        "nav",
+        "header",
+        "footer",
+        "aside"
+      ],
+      "chunk_target_chars": 900
+    },
+    "smoke_queries": {
+      "resolve": "tailwind css",
+      "query": "utility classes",
+      "pack": "style a component with tailwind"
+    }
+  },
+  {
+    "source_id": "/openai/platform",
+    "kind": "docs",
+    "enabled": true,
+    "crawl_targets": [
+      {
+        "label": "llms",
+        "source_type": "llms_full",
+        "crawl_strategy": "llms_full",
+        "url": "https://developers.openai.com/api/docs/llms.txt",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "overview"
+      },
+      {
+        "label": "python-sdk",
+        "source_type": "repo_docs",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/openai/openai-python/tree/main",
+        "include_prefixes": [
+          "README.md",
+          "examples"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "sdk_reference"
+      },
+      {
+        "label": "node-sdk",
+        "source_type": "repo_docs",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/openai/openai-node/tree/master",
+        "include_prefixes": [
+          "README.md",
+          "examples"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "sdk_reference"
+      },
+      {
+        "label": "examples",
+        "source_type": "examples",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/openai/openai-cookbook/tree/main/examples",
+        "include_prefixes": [
+          "examples"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "examples"
+      },
+      {
+        "label": "responses-reference",
+        "source_type": "docs_site",
+        "crawl_strategy": "explicit_urls",
+        "url": "https://developers.openai.com/api/reference/responses/overview",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "api_reference"
+      }
+    ],
+    "normalization_profile": "docs_html",
+    "catalog_metadata": {
+      "title": "OpenAI Platform Docs",
+      "aliases": [
+        "openai",
+        "openai api",
+        "responses api",
+        "openai sdk"
+      ],
+      "domain": "code_docs",
+      "trust": "official",
+      "supported_versions": [
+        "2026"
+      ],
+      "citations": [
+        "https://platform.openai.com/docs",
+        "https://github.com/openai/openai-python",
+        "https://github.com/openai/openai-node"
+      ],
+      "retrieved_at": "2026-05-25T00:00:00Z"
+    },
+    "cadence": "daily",
+    "version_strategy": "latest_supported_version",
+    "extraction_hints": {
+      "content_roots": [
+        "main",
+        "article"
+      ],
+      "drop_selectors": [
+        "nav",
+        "header",
+        "footer",
+        "aside"
+      ],
+      "chunk_target_chars": 900
+    },
+    "smoke_queries": {
+      "resolve": "openai responses api",
+      "query": "responses api",
+      "pack": "call the openai responses api"
+    }
+  },
+  {
+    "source_id": "/nextauthjs/next-auth",
+    "kind": "docs",
+    "enabled": true,
+    "crawl_targets": [
+      {
+        "label": "authjs-sitemap",
+        "source_type": "docs_site",
+        "crawl_strategy": "sitemap",
+        "url": "https://authjs.dev/sitemap.xml",
+        "include_prefixes": [
+          "https://authjs.dev/getting-started",
+          "https://authjs.dev/guides",
+          "https://authjs.dev/reference"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 40,
+        "coverage_role": "api_reference"
+      },
+      {
+        "label": "repo-docs",
+        "source_type": "repo_docs",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/nextauthjs/next-auth/tree/main/docs",
+        "include_prefixes": [
+          "docs"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "api_reference"
+      },
+      {
+        "label": "integrations",
+        "source_type": "docs_site",
+        "crawl_strategy": "sitemap",
+        "url": "https://authjs.dev/sitemap.xml",
+        "include_prefixes": [
+          "https://authjs.dev/getting-started/adapters",
+          "https://authjs.dev/getting-started/session-management"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 20,
+        "coverage_role": "integration"
+      },
+      {
+        "label": "examples",
+        "source_type": "examples",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/nextauthjs/next-auth/tree/main/apps/examples",
+        "include_prefixes": [
+          "apps/examples"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "examples"
+      },
+      {
+        "label": "getting-started",
+        "source_type": "docs_site",
+        "crawl_strategy": "explicit_urls",
+        "url": "https://authjs.dev/getting-started",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "overview"
+      }
+    ],
+    "normalization_profile": "docs_html",
+    "catalog_metadata": {
+      "title": "Auth.js Docs",
+      "aliases": [
+        "auth.js",
+        "nextauth",
+        "nextauth.js",
+        "authentication"
+      ],
+      "domain": "code_docs",
+      "trust": "official",
+      "supported_versions": [
+        "5"
+      ],
+      "citations": [
+        "https://authjs.dev"
+      ],
+      "retrieved_at": "2026-05-25T00:00:00Z"
+    },
+    "cadence": "daily",
+    "version_strategy": "latest_supported_version",
+    "extraction_hints": {
+      "content_roots": [
+        "main",
+        "article"
+      ],
+      "drop_selectors": [
+        "nav",
+        "header",
+        "footer",
+        "aside"
+      ],
+      "chunk_target_chars": 900
+    },
+    "smoke_queries": {
+      "resolve": "auth.js nextjs",
+      "query": "session callback",
+      "pack": "add auth.js to next.js"
+    }
+  },
+  {
+    "source_id": "/drizzle-team/drizzle-orm",
+    "kind": "docs",
+    "enabled": true,
+    "crawl_targets": [
+      {
+        "label": "llms",
+        "source_type": "llms_full",
+        "crawl_strategy": "llms_full",
+        "url": "https://orm.drizzle.team/llms.txt",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "overview"
+      },
+      {
+        "label": "repo-docs",
+        "source_type": "repo_docs",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/drizzle-team/drizzle-orm-docs/tree/main/src/content/docs",
+        "include_prefixes": [
+          "src/content/docs"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "api_reference"
+      },
+      {
+        "label": "examples",
+        "source_type": "examples",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/drizzle-team/drizzle-orm/tree/main/examples",
+        "include_prefixes": [
+          "examples"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "examples"
+      }
+    ],
+    "normalization_profile": "docs_html",
+    "catalog_metadata": {
+      "title": "Drizzle ORM Docs",
+      "aliases": [
+        "drizzle",
+        "drizzle orm",
+        "drizzle kit"
+      ],
+      "domain": "code_docs",
+      "trust": "official",
+      "supported_versions": [
+        "2026"
+      ],
+      "citations": [
+        "https://orm.drizzle.team/docs/overview"
+      ],
+      "retrieved_at": "2026-05-25T00:00:00Z"
+    },
+    "cadence": "daily",
+    "version_strategy": "latest_supported_version",
+    "extraction_hints": {
+      "content_roots": [
+        "main",
+        "article"
+      ],
+      "drop_selectors": [
+        "nav",
+        "header",
+        "footer",
+        "aside"
+      ],
+      "chunk_target_chars": 900
+    },
+    "smoke_queries": {
+      "resolve": "drizzle orm",
+      "query": "schema migrations",
+      "pack": "define postgres schema with drizzle"
+    }
+  },
+  {
+    "source_id": "/colinhacks/zod",
+    "kind": "docs",
+    "enabled": true,
+    "crawl_targets": [
+      {
+        "label": "llms",
+        "source_type": "llms_full",
+        "crawl_strategy": "llms_full",
+        "url": "https://zod.dev/llms.txt",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "overview"
+      },
+      {
+        "label": "repo-docs",
+        "source_type": "repo_docs",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/colinhacks/zod/tree/main",
+        "include_prefixes": [
+          "README.md",
+          "packages/docs/content"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "api_reference"
+      },
+      {
+        "label": "migration",
+        "source_type": "docs_site",
+        "crawl_strategy": "explicit_urls",
+        "url": "https://zod.dev/v4/changelog",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "migration"
+      },
+      {
+        "label": "examples",
+        "source_type": "examples",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/colinhacks/zod/tree/main/packages/docs/content",
+        "include_prefixes": [
+          "packages/docs/content"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "examples"
+      }
+    ],
+    "normalization_profile": "docs_html",
+    "catalog_metadata": {
+      "title": "Zod Docs",
+      "aliases": [
+        "zod",
+        "zod schema",
+        "validation"
+      ],
+      "domain": "code_docs",
+      "trust": "official",
+      "supported_versions": [
+        "4"
+      ],
+      "citations": [
+        "https://zod.dev"
+      ],
+      "retrieved_at": "2026-05-25T00:00:00Z"
+    },
+    "cadence": "daily",
+    "version_strategy": "latest_supported_version",
+    "extraction_hints": {
+      "content_roots": [
+        "main",
+        "article"
+      ],
+      "drop_selectors": [
+        "nav",
+        "header",
+        "footer",
+        "aside"
+      ],
+      "chunk_target_chars": 900
+    },
+    "smoke_queries": {
+      "resolve": "zod validation",
+      "query": "object schema",
+      "pack": "validate input with zod"
+    }
+  },
+  {
+    "source_id": "/trpc/trpc",
+    "kind": "docs",
+    "enabled": true,
+    "crawl_targets": [
+      {
+        "label": "llms",
+        "source_type": "llms_full",
+        "crawl_strategy": "llms_full",
+        "url": "https://trpc.io/llms.txt",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "overview"
+      },
+      {
+        "label": "docs-sitemap",
+        "source_type": "docs_site",
+        "crawl_strategy": "sitemap",
+        "url": "https://trpc.io/sitemap.xml",
+        "include_prefixes": [
+          "https://trpc.io/docs"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 40,
+        "coverage_role": "api_reference"
+      },
+      {
+        "label": "repo-docs",
+        "source_type": "repo_docs",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/trpc/trpc/tree/main/www/docs",
+        "include_prefixes": [
+          "www/docs"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "api_reference"
+      },
+      {
+        "label": "migration",
+        "source_type": "docs_site",
+        "crawl_strategy": "sitemap",
+        "url": "https://trpc.io/sitemap.xml",
+        "include_prefixes": [
+          "https://trpc.io/docs/migrate"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 10,
+        "coverage_role": "migration"
+      },
+      {
+        "label": "examples",
+        "source_type": "examples",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/trpc/trpc/tree/main/examples",
+        "include_prefixes": [
+          "examples"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "examples"
+      }
+    ],
+    "normalization_profile": "docs_html",
+    "catalog_metadata": {
+      "title": "tRPC Docs",
+      "aliases": [
+        "trpc",
+        "tRPC",
+        "typesafe api"
+      ],
+      "domain": "code_docs",
+      "trust": "official",
+      "supported_versions": [
+        "11"
+      ],
+      "citations": [
+        "https://trpc.io/docs"
+      ],
+      "retrieved_at": "2026-05-25T00:00:00Z"
+    },
+    "cadence": "daily",
+    "version_strategy": "latest_supported_version",
+    "extraction_hints": {
+      "content_roots": [
+        "main",
+        "article"
+      ],
+      "drop_selectors": [
+        "nav",
+        "header",
+        "footer",
+        "aside"
+      ],
+      "chunk_target_chars": 900
+    },
+    "smoke_queries": {
+      "resolve": "trpc router",
+      "query": "procedure input",
+      "pack": "build typesafe api with trpc"
+    }
+  },
+  {
+    "source_id": "/shadcn-ui/ui",
+    "kind": "docs",
+    "enabled": true,
+    "crawl_targets": [
+      {
+        "label": "llms",
+        "source_type": "llms_full",
+        "crawl_strategy": "llms_full",
+        "url": "https://ui.shadcn.com/llms.txt",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "overview"
+      },
+      {
+        "label": "repo-docs",
+        "source_type": "repo_docs",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/shadcn-ui/ui/tree/main/apps/www/content",
+        "include_prefixes": [
+          "apps/www/content"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "api_reference"
+      },
+      {
+        "label": "examples",
+        "source_type": "examples",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/shadcn-ui/ui/tree/main/apps/www/registry",
+        "include_prefixes": [
+          "apps/www/registry"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "examples"
+      }
+    ],
+    "normalization_profile": "docs_html",
+    "catalog_metadata": {
+      "title": "shadcn/ui Docs",
+      "aliases": [
+        "shadcn",
+        "shadcn/ui",
+        "ui components"
+      ],
+      "domain": "code_docs",
+      "trust": "official",
+      "supported_versions": [
+        "2026"
+      ],
+      "citations": [
+        "https://ui.shadcn.com/docs"
+      ],
+      "retrieved_at": "2026-05-25T00:00:00Z"
+    },
+    "cadence": "daily",
+    "version_strategy": "latest_supported_version",
+    "extraction_hints": {
+      "content_roots": [
+        "main",
+        "article"
+      ],
+      "drop_selectors": [
+        "nav",
+        "header",
+        "footer",
+        "aside"
+      ],
+      "chunk_target_chars": 900
+    },
+    "smoke_queries": {
+      "resolve": "shadcn button",
+      "query": "install component",
+      "pack": "add shadcn ui button"
+    }
+  },
+  {
+    "source_id": "/radix-ui/primitives",
+    "kind": "docs",
+    "enabled": true,
+    "crawl_targets": [
+      {
+        "label": "primitives-intro",
+        "source_type": "docs_site",
+        "crawl_strategy": "explicit_urls",
+        "url": "https://www.radix-ui.com/primitives/docs/overview/introduction",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "overview"
+      },
+      {
+        "label": "repo-docs",
+        "source_type": "repo_docs",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/radix-ui/website/tree/main/data/primitives",
+        "include_prefixes": [
+          "data/primitives"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "api_reference"
+      },
+      {
+        "label": "examples",
+        "source_type": "examples",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/radix-ui/primitives/tree/main/packages/react",
+        "include_prefixes": [
+          "packages/react"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "examples"
+      }
+    ],
+    "normalization_profile": "docs_html",
+    "catalog_metadata": {
+      "title": "Radix Primitives Docs",
+      "aliases": [
+        "radix",
+        "radix ui",
+        "radix primitives",
+        "accessible components"
+      ],
+      "domain": "code_docs",
+      "trust": "official",
+      "supported_versions": [
+        "2026"
+      ],
+      "citations": [
+        "https://www.radix-ui.com/primitives/docs/overview/introduction"
+      ],
+      "retrieved_at": "2026-05-25T00:00:00Z"
+    },
+    "cadence": "daily",
+    "version_strategy": "latest_supported_version",
+    "extraction_hints": {
+      "content_roots": [
+        "main",
+        "article"
+      ],
+      "drop_selectors": [
+        "nav",
+        "header",
+        "footer",
+        "aside"
+      ],
+      "chunk_target_chars": 900
+    },
+    "smoke_queries": {
+      "resolve": "radix dialog",
+      "query": "accessible dialog",
+      "pack": "build dialog with radix primitives"
+    }
+  },
+  {
+    "source_id": "/microsoft/playwright",
+    "kind": "docs",
+    "enabled": true,
+    "crawl_targets": [
+      {
+        "label": "docs-sitemap",
+        "source_type": "docs_site",
+        "crawl_strategy": "sitemap",
+        "url": "https://playwright.dev/sitemap.xml",
+        "include_prefixes": [
+          "https://playwright.dev/docs"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 40,
+        "coverage_role": "api_reference"
+      },
+      {
+        "label": "repo-docs",
+        "source_type": "repo_docs",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/microsoft/playwright/tree/main/docs/src",
+        "include_prefixes": [
+          "docs/src"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "api_reference"
+      },
+      {
+        "label": "examples",
+        "source_type": "examples",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/microsoft/playwright/tree/main/examples",
+        "include_prefixes": [
+          "examples"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "examples"
+      },
+      {
+        "label": "intro",
+        "source_type": "docs_site",
+        "crawl_strategy": "explicit_urls",
+        "url": "https://playwright.dev/docs/intro",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "overview"
+      }
+    ],
+    "normalization_profile": "docs_html",
+    "catalog_metadata": {
+      "title": "Playwright Docs",
+      "aliases": [
+        "playwright",
+        "e2e testing",
+        "browser automation"
+      ],
+      "domain": "code_docs",
+      "trust": "official",
+      "supported_versions": [
+        "1.58"
+      ],
+      "citations": [
+        "https://playwright.dev/docs/intro"
+      ],
+      "retrieved_at": "2026-05-25T00:00:00Z"
+    },
+    "cadence": "daily",
+    "version_strategy": "latest_supported_version",
+    "extraction_hints": {
+      "content_roots": [
+        "main",
+        "article"
+      ],
+      "drop_selectors": [
+        "nav",
+        "header",
+        "footer",
+        "aside"
+      ],
+      "chunk_target_chars": 900
+    },
+    "smoke_queries": {
+      "resolve": "playwright test",
+      "query": "locator assertions",
+      "pack": "write a playwright test"
+    }
+  },
+  {
+    "source_id": "/vitest-dev/vitest",
+    "kind": "docs",
+    "enabled": true,
+    "crawl_targets": [
+      {
+        "label": "guide",
+        "source_type": "docs_site",
+        "crawl_strategy": "explicit_urls",
+        "url": "https://vitest.dev/guide/",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "overview"
+      },
+      {
+        "label": "repo-docs",
+        "source_type": "repo_docs",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/vitest-dev/vitest/tree/main/docs",
+        "include_prefixes": [
+          "docs"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "api_reference"
+      },
+      {
+        "label": "examples",
+        "source_type": "examples",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/vitest-dev/vitest/tree/main/examples",
+        "include_prefixes": [
+          "examples"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "examples"
+      }
+    ],
+    "normalization_profile": "docs_html",
+    "catalog_metadata": {
+      "title": "Vitest Docs",
+      "aliases": [
+        "vitest",
+        "unit testing",
+        "vite test"
+      ],
+      "domain": "code_docs",
+      "trust": "official",
+      "supported_versions": [
+        "4"
+      ],
+      "citations": [
+        "https://vitest.dev/guide/"
+      ],
+      "retrieved_at": "2026-05-25T00:00:00Z"
+    },
+    "cadence": "daily",
+    "version_strategy": "latest_supported_version",
+    "extraction_hints": {
+      "content_roots": [
+        "main",
+        "article"
+      ],
+      "drop_selectors": [
+        "nav",
+        "header",
+        "footer",
+        "aside"
+      ],
+      "chunk_target_chars": 900
+    },
+    "smoke_queries": {
+      "resolve": "vitest test",
+      "query": "mock function",
+      "pack": "write a vitest unit test"
+    }
+  },
+  {
+    "source_id": "/stripe/stripe-node",
+    "kind": "docs",
+    "enabled": true,
+    "crawl_targets": [
+      {
+        "label": "payments",
+        "source_type": "docs_site",
+        "crawl_strategy": "explicit_urls",
+        "url": "https://docs.stripe.com/payments",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "overview"
+      },
+      {
+        "label": "checkout",
+        "source_type": "docs_site",
+        "crawl_strategy": "explicit_urls",
+        "url": "https://docs.stripe.com/checkout",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "integration"
+      },
+      {
+        "label": "node-sdk",
+        "source_type": "repo_docs",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/stripe/stripe-node/tree/master",
+        "include_prefixes": [
+          "README.md",
+          "examples"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "sdk_reference"
+      },
+      {
+        "label": "examples",
+        "source_type": "examples",
+        "crawl_strategy": "explicit_urls",
+        "url": "https://docs.stripe.com/samples",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "examples"
+      },
+      {
+        "label": "api-reference",
+        "source_type": "docs_site",
+        "crawl_strategy": "explicit_urls",
+        "url": "https://docs.stripe.com/api",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "api_reference"
+      }
+    ],
+    "normalization_profile": "docs_html",
+    "catalog_metadata": {
+      "title": "Stripe Node Docs",
+      "aliases": [
+        "stripe",
+        "stripe node",
+        "payments",
+        "checkout"
+      ],
+      "domain": "code_docs",
+      "trust": "official",
+      "supported_versions": [
+        "19"
+      ],
+      "citations": [
+        "https://docs.stripe.com",
+        "https://github.com/stripe/stripe-node"
+      ],
+      "retrieved_at": "2026-05-25T00:00:00Z"
+    },
+    "cadence": "daily",
+    "version_strategy": "latest_supported_version",
+    "extraction_hints": {
+      "content_roots": [
+        "main",
+        "article"
+      ],
+      "drop_selectors": [
+        "nav",
+        "header",
+        "footer",
+        "aside"
+      ],
+      "chunk_target_chars": 900
+    },
+    "smoke_queries": {
+      "resolve": "stripe checkout",
+      "query": "payment intent",
+      "pack": "create stripe checkout session"
+    }
+  },
+  {
+    "source_id": "/clerk/clerk-docs",
+    "kind": "docs",
+    "enabled": true,
+    "crawl_targets": [
+      {
+        "label": "docs",
+        "source_type": "docs_site",
+        "crawl_strategy": "explicit_urls",
+        "url": "https://clerk.com/docs",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "overview"
+      },
+      {
+        "label": "llms-full",
+        "source_type": "llms_full",
+        "crawl_strategy": "llms_full",
+        "url": "https://clerk.com/llms-full.txt",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "overview"
+      },
+      {
+        "label": "repo-docs",
+        "source_type": "repo_docs",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/clerk/clerk-docs/tree/main/docs",
+        "include_prefixes": [
+          "docs"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "api_reference"
+      },
+      {
+        "label": "nextjs-guides",
+        "source_type": "docs_site",
+        "crawl_strategy": "explicit_urls",
+        "url": "https://clerk.com/docs/references/nextjs/overview",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "integration"
+      },
+      {
+        "label": "examples",
+        "source_type": "examples",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/clerk/javascript/tree/main/examples",
+        "include_prefixes": [
+          "examples"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "examples"
+      }
+    ],
+    "normalization_profile": "docs_html",
+    "catalog_metadata": {
+      "title": "Clerk Docs",
+      "aliases": [
+        "clerk",
+        "clerk auth",
+        "user management"
+      ],
+      "domain": "code_docs",
+      "trust": "official",
+      "supported_versions": [
+        "2026"
+      ],
+      "citations": [
+        "https://clerk.com/docs"
+      ],
+      "retrieved_at": "2026-05-25T00:00:00Z"
+    },
+    "cadence": "daily",
+    "version_strategy": "latest_supported_version",
+    "extraction_hints": {
+      "content_roots": [
+        "main",
+        "article"
+      ],
+      "drop_selectors": [
+        "nav",
+        "header",
+        "footer",
+        "aside"
+      ],
+      "chunk_target_chars": 900
+    },
+    "smoke_queries": {
+      "resolve": "clerk nextjs",
+      "query": "middleware auth",
+      "pack": "protect a next.js route with clerk"
+    }
+  },
+  {
+    "source_id": "/neondatabase/neon",
+    "kind": "docs",
+    "enabled": true,
+    "crawl_targets": [
+      {
+        "label": "llms",
+        "source_type": "llms_full",
+        "crawl_strategy": "llms_full",
+        "url": "https://neon.com/llms.txt",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "overview"
+      },
+      {
+        "label": "docs-intro",
+        "source_type": "docs_site",
+        "crawl_strategy": "explicit_urls",
+        "url": "https://neon.com/docs/introduction",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "overview"
+      },
+      {
+        "label": "repo-docs",
+        "source_type": "repo_docs",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/neondatabase/neon/tree/main/docs",
+        "include_prefixes": [
+          "docs"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "api_reference"
+      },
+      {
+        "label": "connection-guides",
+        "source_type": "docs_site",
+        "crawl_strategy": "explicit_urls",
+        "url": "https://neon.com/docs/connect/connect-from-any-app",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "integration"
+      },
+      {
+        "label": "examples",
+        "source_type": "examples",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/neondatabase/examples/tree/main",
+        "include_prefixes": [
+          "with-nextjs",
+          "with-drizzle",
+          "with-prisma"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "examples"
+      }
+    ],
+    "normalization_profile": "docs_html",
+    "catalog_metadata": {
+      "title": "Neon Docs",
+      "aliases": [
+        "neon",
+        "neon postgres",
+        "serverless postgres"
+      ],
+      "domain": "code_docs",
+      "trust": "official",
+      "supported_versions": [
+        "2026"
+      ],
+      "citations": [
+        "https://neon.com/docs"
+      ],
+      "retrieved_at": "2026-05-25T00:00:00Z"
+    },
+    "cadence": "daily",
+    "version_strategy": "latest_supported_version",
+    "extraction_hints": {
+      "content_roots": [
+        "main",
+        "article"
+      ],
+      "drop_selectors": [
+        "nav",
+        "header",
+        "footer",
+        "aside"
+      ],
+      "chunk_target_chars": 900
+    },
+    "smoke_queries": {
+      "resolve": "neon postgres",
+      "query": "connection string",
+      "pack": "connect to neon postgres"
+    }
+  },
+  {
+    "source_id": "/tursodatabase/turso",
+    "kind": "docs",
+    "enabled": true,
+    "crawl_targets": [
+      {
+        "label": "llms-full",
+        "source_type": "llms_full",
+        "crawl_strategy": "llms_full",
+        "url": "https://turso.tech/llms-full.txt",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "overview"
+      },
+      {
+        "label": "repo-docs",
+        "source_type": "repo_docs",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/tursodatabase/turso-docs/tree/main",
+        "include_prefixes": [
+          "docs",
+          "src",
+          "content"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "api_reference"
+      },
+      {
+        "label": "examples",
+        "source_type": "examples",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/tursodatabase/examples/tree/master",
+        "include_prefixes": [
+          ""
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "examples"
+      }
+    ],
+    "normalization_profile": "docs_html",
+    "catalog_metadata": {
+      "title": "Turso Docs",
+      "aliases": [
+        "turso",
+        "libsql",
+        "sqlite"
+      ],
+      "domain": "code_docs",
+      "trust": "official",
+      "supported_versions": [
+        "2026"
+      ],
+      "citations": [
+        "https://turso.tech/docs"
+      ],
+      "retrieved_at": "2026-05-25T00:00:00Z"
+    },
+    "cadence": "daily",
+    "version_strategy": "latest_supported_version",
+    "extraction_hints": {
+      "content_roots": [
+        "main",
+        "article"
+      ],
+      "drop_selectors": [
+        "nav",
+        "header",
+        "footer",
+        "aside"
+      ],
+      "chunk_target_chars": 900
+    },
+    "smoke_queries": {
+      "resolve": "turso libsql",
+      "query": "create database",
+      "pack": "connect to turso database"
+    }
+  },
+  {
+    "source_id": "/honojs/hono",
+    "kind": "docs",
+    "enabled": true,
+    "crawl_targets": [
+      {
+        "label": "llms-full",
+        "source_type": "llms_full",
+        "crawl_strategy": "llms_full",
+        "url": "https://hono.dev/llms-full.txt",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "overview"
+      },
+      {
+        "label": "docs",
+        "source_type": "docs_site",
+        "crawl_strategy": "explicit_urls",
+        "url": "https://hono.dev/docs/",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "overview"
+      },
+      {
+        "label": "repo-docs",
+        "source_type": "repo_docs",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/honojs/hono/tree/main/docs",
+        "include_prefixes": [
+          "docs"
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "api_reference"
+      },
+      {
+        "label": "middleware",
+        "source_type": "docs_site",
+        "crawl_strategy": "explicit_urls",
+        "url": "https://hono.dev/docs/guides/middleware",
+        "include_prefixes": [],
+        "exclude_prefixes": [],
+        "max_pages": 1,
+        "coverage_role": "integration"
+      },
+      {
+        "label": "examples",
+        "source_type": "examples",
+        "crawl_strategy": "github_tree",
+        "url": "https://github.com/honojs/examples/tree/main",
+        "include_prefixes": [
+          ""
+        ],
+        "exclude_prefixes": [],
+        "max_pages": 30,
+        "coverage_role": "examples"
+      }
+    ],
+    "normalization_profile": "docs_html",
+    "catalog_metadata": {
+      "title": "Hono Docs",
+      "aliases": [
+        "hono",
+        "honojs",
+        "web framework",
+        "cloudflare workers framework"
+      ],
+      "domain": "code_docs",
+      "trust": "official",
+      "supported_versions": [
+        "2026"
+      ],
+      "citations": [
+        "https://hono.dev/docs/"
+      ],
+      "retrieved_at": "2026-05-25T00:00:00Z"
+    },
+    "cadence": "daily",
+    "version_strategy": "latest_supported_version",
+    "extraction_hints": {
+      "content_roots": [
+        "main",
+        "article"
+      ],
+      "drop_selectors": [
+        "nav",
+        "header",
+        "footer",
+        "aside"
+      ],
+      "chunk_target_chars": 900
+    },
+    "smoke_queries": {
+      "resolve": "hono route",
+      "query": "middleware",
+      "pack": "build an api with hono"
     }
   }
 ]

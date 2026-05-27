@@ -1,6 +1,6 @@
 // Where: tests/engine_tests.rs
 // What: Engine-level tests with deterministic mock catalog and providers.
-// Why: Verify resolver, query, pack, and cite behavior without requiring live canisters.
+// Why: Verify resolver, query, pack, and cite behavior without requiring a live wiki database.
 use std::collections::BTreeMap;
 
 use anyhow::{Result, anyhow};
@@ -271,7 +271,7 @@ async fn pack_merges_multiple_sources_and_records_efficiency_metrics() {
     );
     let metrics = output.metrics.expect("pack metrics should exist");
     assert_eq!(metrics.resolved_sources_count, 4);
-    assert_eq!(metrics.queried_canisters_count, 2);
+    assert_eq!(metrics.queried_sources_count, 2);
     assert_eq!(metrics.returned_snippets_count, 2);
     assert_eq!(metrics.selected_evidence_count, 2);
     assert_eq!(metrics.empty_source_count, 0);
@@ -287,7 +287,7 @@ async fn pack_skips_failed_sources_and_records_source_error_warning() {
             responses: provider().responses,
             errors: BTreeMap::from([(
                 "/supabase/docs".to_string(),
-                "memory search failed".to_string(),
+                "wiki search failed".to_string(),
             )]),
         },
     );
@@ -319,20 +319,14 @@ async fn pack_fails_when_all_resolved_sources_fail() {
             errors: BTreeMap::from([
                 (
                     "/vercel/next.js".to_string(),
-                    "memory search failed".to_string(),
+                    "wiki search failed".to_string(),
                 ),
                 (
                     "/supabase/docs".to_string(),
-                    "memory search failed".to_string(),
+                    "wiki search failed".to_string(),
                 ),
-                (
-                    "/react/docs".to_string(),
-                    "memory search failed".to_string(),
-                ),
-                (
-                    "/react/docs".to_string(),
-                    "memory search failed".to_string(),
-                ),
+                ("/react/docs".to_string(), "wiki search failed".to_string()),
+                ("/react/docs".to_string(), "wiki search failed".to_string()),
             ]),
         },
     );
@@ -359,7 +353,7 @@ async fn pack_respects_token_budget() {
     assert_eq!(output.pack_summary, "No evidence found for the query.");
     assert_eq!(output.token_budget, 10);
     let metrics = output.metrics.expect("pack metrics should exist");
-    assert_eq!(metrics.queried_canisters_count, 1);
+    assert_eq!(metrics.queried_sources_count, 1);
     assert_eq!(metrics.returned_snippets_count, 1);
     assert_eq!(metrics.selected_evidence_count, 0);
     assert_eq!(metrics.estimated_pack_tokens, 0);

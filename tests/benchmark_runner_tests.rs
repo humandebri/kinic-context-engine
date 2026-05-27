@@ -15,13 +15,23 @@ async fn benchmark_report_serializes_as_json_and_markdown() {
     let decoded: BenchmarkSuiteReport =
         serde_json::from_str(&encoded).expect("benchmark report should decode");
     assert_eq!(decoded.scenarios.len(), 8);
-    assert!(decoded.scenarios.iter().all(|scenario| scenario.pocket_ic_skipped));
-    assert!(decoded.scenarios.iter().all(|scenario| scenario.quality_guard_passed));
     assert!(
         decoded
             .scenarios
             .iter()
-            .filter(|scenario| scenario.improved_canisters || scenario.improved_tokens)
+            .all(|scenario| scenario.live_skipped)
+    );
+    assert!(
+        decoded
+            .scenarios
+            .iter()
+            .all(|scenario| scenario.quality_guard_passed)
+    );
+    assert!(
+        decoded
+            .scenarios
+            .iter()
+            .filter(|scenario| scenario.improved_sources || scenario.improved_tokens)
             .count()
             >= 2
     );
@@ -33,6 +43,6 @@ async fn benchmark_report_serializes_as_json_and_markdown() {
     assert!(markdown.contains("migration-version"));
     assert!(markdown.contains("vector-natural-language"));
     assert!(markdown.contains("skipped"));
-    assert!(markdown.contains("pocketic canisters"));
+    assert!(markdown.contains("live sources"));
     assert!(markdown.contains("verdict"));
 }

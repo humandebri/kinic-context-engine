@@ -110,8 +110,8 @@ impl EmbeddingClient {
     async fn embed_local(&self, backend: &LocalBackend, text: String) -> Result<Vec<f32>> {
         let model_dir = backend.model_dir.clone();
         tokio::task::spawn_blocking(move || e5::embed_text_with_model_dir(model_dir, &text))
-        .await
-        .context("local embedding task failed")?
+            .await
+            .context("local embedding task failed")?
     }
 
     #[cfg(test)]

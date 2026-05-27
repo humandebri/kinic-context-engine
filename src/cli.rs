@@ -27,9 +27,9 @@ pub enum Command {
     Pack(PackArgs),
     #[command(about = "Extract citation and provenance details from an evidence pack")]
     Cite(CiteArgs),
-    #[command(about = "List all sources exposed by the catalog canister")]
+    #[command(about = "List all sources exposed by the Wiki source index")]
     ListSources(ListSourcesArgs),
-    #[command(about = "Filter catalog sources by metadata")]
+    #[command(about = "Filter Wiki source index entries by metadata")]
     FilterSources(FilterSourcesArgs),
 }
 

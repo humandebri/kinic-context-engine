@@ -93,7 +93,7 @@ where
         let mut evidence = Vec::new();
         let mut seen = BTreeSet::new();
         let mut successful_sources = 0_usize;
-        let mut queried_canisters_count = 0_usize;
+        let mut queried_sources_count = 0_usize;
         let mut returned_snippets_count = 0_usize;
         let mut empty_source_count = 0_usize;
         let mut source_error_count = 0_usize;
@@ -104,7 +104,7 @@ where
             .fetch_pack_outcomes(query.to_string(), selected_sources, source_top_k)
             .await?
         {
-            queried_canisters_count += outcome.queried_canisters_count();
+            queried_sources_count += outcome.queried_sources_count();
             query_ms_total = query_ms_total.saturating_add(outcome.query_ms());
             match outcome {
                 PackSourceOutcome::QueryFailed {
@@ -155,7 +155,7 @@ where
 
         let metrics = PackMetrics {
             resolved_sources_count,
-            queried_canisters_count,
+            queried_sources_count,
             returned_snippets_count,
             selected_evidence_count: evidence.len(),
             estimated_pack_tokens: estimate_pack_tokens(&evidence),
@@ -230,22 +230,22 @@ where
                 match catalog.get_source(&source_id).await {
                     Ok(source) => {
                         let started_at = Instant::now();
-                        let queried_canisters_count = 1;
+                        let queried_sources_count = 1;
                         match provider.query(source, &query, None, source_top_k).await {
                             Ok(snippets) => {
                                 let returned_snippets = snippets.len();
                                 PackSourceOutcome::QuerySucceeded {
                                     source_id,
                                     snippets,
-                                    queried_canisters_count,
+                                    queried_sources_count,
                                     returned_snippets,
                                     query_ms: elapsed_ms(started_at),
                                 }
                             }
                             Err(_) => PackSourceOutcome::QueryFailed {
                                 source_id,
-                                stage: "query source canisters",
-                                queried_canisters_count,
+                                stage: "query wiki source",
+                                queried_sources_count,
                                 query_ms: elapsed_ms(started_at),
                             },
                         }
@@ -253,7 +253,7 @@ where
                     Err(_) => PackSourceOutcome::QueryFailed {
                         source_id,
                         stage: "load source metadata",
-                        queried_canisters_count: 0,
+                        queried_sources_count: 0,
                         query_ms: 0,
                     },
                 }
@@ -311,29 +311,29 @@ enum PackSourceOutcome {
     QueryFailed {
         source_id: String,
         stage: &'static str,
-        queried_canisters_count: usize,
+        queried_sources_count: usize,
         query_ms: u64,
     },
     QuerySucceeded {
         source_id: String,
         snippets: Vec<SourceSnippet>,
-        queried_canisters_count: usize,
+        queried_sources_count: usize,
         returned_snippets: usize,
         query_ms: u64,
     },
 }
 
 impl PackSourceOutcome {
-    fn queried_canisters_count(&self) -> usize {
+    fn queried_sources_count(&self) -> usize {
         match self {
             Self::QueryFailed {
-                queried_canisters_count,
+                queried_sources_count,
                 ..
             }
             | Self::QuerySucceeded {
-                queried_canisters_count,
+                queried_sources_count,
                 ..
-            } => *queried_canisters_count,
+            } => *queried_sources_count,
         }
     }
 

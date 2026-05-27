@@ -1,9 +1,7 @@
 // Where: src/pack.rs
 // What: Pack planning and token estimation helpers for hybrid retrieval.
 // Why: Keep selection and budget policy explicit so tests can measure efficiency changes.
-use crate::{
-    model::{PackResolvedSource, ResolvedSource, SourceSnippet},
-};
+use crate::model::{PackResolvedSource, ResolvedSource, SourceSnippet};
 use std::collections::BTreeSet;
 
 const MIN_SOURCE_SCORE_RATIO: f32 = 0.45;

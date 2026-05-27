@@ -1,6 +1,6 @@
 // Where: src/catalog.rs
 // What: CLI-facing source discovery backed by kinic-vfs-cli search.
-// Why: Reuse the existing wiki canister API instead of a dedicated catalog canister.
+// Why: Reuse the existing wiki API instead of a separate catalog backend.
 use anyhow::Result;
 use kinic_context_core::types::FilterSourcesArgs;
 use std::collections::BTreeSet;

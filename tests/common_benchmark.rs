@@ -153,7 +153,7 @@ pub fn baseline_report(fixture: &DeterministicFixture) -> BenchmarkStrategyResul
         .collect::<Vec<_>>();
     let mut evidence = Vec::new();
     let mut empty_source_count = 0_usize;
-    let mut queried_canisters_count = 0_usize;
+    let mut queried_sources_count = 0_usize;
 
     for resolved_source in &resolved {
         let _source = fixture
@@ -161,7 +161,7 @@ pub fn baseline_report(fixture: &DeterministicFixture) -> BenchmarkStrategyResul
             .sources
             .get(&resolved_source.source_id)
             .expect("source should exist");
-        queried_canisters_count += 1;
+        queried_sources_count += 1;
         let mut snippets = fixture
             .provider
             .responses
@@ -181,7 +181,7 @@ pub fn baseline_report(fixture: &DeterministicFixture) -> BenchmarkStrategyResul
         strategy: "baseline".to_string(),
         metrics: kinic_context_cli::benchmark::BenchmarkMetricsSnapshot {
             resolved_sources_count: resolved.len(),
-            queried_canisters_count,
+            queried_sources_count,
             selected_evidence_count: selected_evidence.len(),
             estimated_pack_tokens: estimate_pack_tokens(&selected_evidence),
             empty_source_count,
@@ -228,7 +228,7 @@ pub fn metrics_from_report(report: &BenchmarkScenarioReport) -> PackMetrics {
     let metrics = &report.current_deterministic.metrics;
     PackMetrics {
         resolved_sources_count: metrics.resolved_sources_count,
-        queried_canisters_count: metrics.queried_canisters_count,
+        queried_sources_count: metrics.queried_sources_count,
         returned_snippets_count: 0,
         selected_evidence_count: metrics.selected_evidence_count,
         estimated_pack_tokens: metrics.estimated_pack_tokens,

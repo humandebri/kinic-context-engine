@@ -1,6 +1,6 @@
 # Where: tools/source_ops/tests/test_source_ops.py
 # What: Unit and integration coverage for source_ops registry, normalization, diffing, smoke, and orchestration.
-# Why: Keep the automation contract stable before wiring it to daily Codex runs and real canisters.
+# Why: Keep the automation contract stable before wiring it to daily Codex runs and real wiki databases.
 from __future__ import annotations
 
 import json
@@ -13,6 +13,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tools.source_ops import (
+    collect,
     diff,
     embedding,
     kinic_writer,
@@ -80,8 +81,38 @@ class SourceOpsTests(unittest.TestCase):
             "source_id": "/vercel/next.js",
             "kind": "docs",
             "enabled": True,
-            "public_urls": [{"label": "middleware", "url": self.fixture.as_uri()}],
-            "discovery_urls": [],
+            "crawl_targets": [
+                {
+                    "label": "overview",
+                    "source_type": "docs_site",
+                    "crawl_strategy": "explicit_urls",
+                    "url": self.fixture.as_uri(),
+                    "include_prefixes": [],
+                    "exclude_prefixes": [],
+                    "max_pages": 1,
+                    "coverage_role": "overview",
+                },
+                {
+                    "label": "api-reference",
+                    "source_type": "docs_site",
+                    "crawl_strategy": "explicit_urls",
+                    "url": f"{self.fixture.as_uri()}?api",
+                    "include_prefixes": [],
+                    "exclude_prefixes": [],
+                    "max_pages": 1,
+                    "coverage_role": "api_reference",
+                },
+                {
+                    "label": "examples",
+                    "source_type": "examples",
+                    "crawl_strategy": "explicit_urls",
+                    "url": f"{self.fixture.as_uri()}?examples",
+                    "include_prefixes": [],
+                    "exclude_prefixes": [],
+                    "max_pages": 1,
+                    "coverage_role": "examples",
+                }
+            ],
             "normalization_profile": "docs_html",
             "catalog_metadata": {
                 "title": "Next.js Docs",
@@ -107,14 +138,23 @@ class SourceOpsTests(unittest.TestCase):
         }
 
     def test_registry_file_has_required_fields(self) -> None:
-        errors = registry.validate_registry(registry.load_registry(load_settings()))
+        sources = registry.load_registry(load_settings())
+        errors = registry.validate_registry(sources)
         self.assertEqual(errors, [])
+        by_id = {source["source_id"]: source for source in sources}
+        self.assertEqual(by_id["/vercel/next.js"]["catalog_metadata"]["supported_versions"], ["16"])
+        self.assertEqual(by_id["/react/docs"]["catalog_metadata"]["supported_versions"], ["19.2"])
+        self.assertEqual(by_id["/supabase/docs"]["catalog_metadata"]["retrieved_at"], "2026-05-25T00:00:00Z")
 
     def test_register_source_builds_valid_registry_entry(self) -> None:
         entry = register_source.build_source_entry(
             source_id="/tanstack/query",
             title="TanStack Query Docs",
-            urls=["overview=https://tanstack.com/query/latest/docs/framework/react/overview"],
+            urls=[
+                "overview=https://tanstack.com/query/latest/docs/framework/react/overview",
+                "api=https://tanstack.com/query/latest/docs/framework/react/reference/useQuery",
+                "examples=https://tanstack.com/query/latest/docs/framework/react/examples/basic",
+            ],
             aliases=["tanstack query", "react query"],
             versions=["latest"],
             citations=[],
@@ -124,9 +164,10 @@ class SourceOpsTests(unittest.TestCase):
             chunk_target_chars=900,
         )
         self.assertEqual(registry.validate_registry([entry]), [])
-        self.assertEqual(entry["public_urls"][0]["label"], "overview")
+        self.assertEqual(entry["crawl_targets"][0]["label"], "overview")
+        self.assertEqual(entry["crawl_targets"][0]["crawl_strategy"], "explicit_urls")
+        self.assertEqual(entry["crawl_targets"][2]["coverage_role"], "examples")
         self.assertIn("tanstack query", entry["catalog_metadata"]["aliases"])
-        self.assertNotIn("memory_targets", entry)
 
     def test_register_source_accepts_unlabeled_url_with_query_equals(self) -> None:
         parsed = register_source.parse_labeled_url("https://example.com/docs?foo=bar", 1)
@@ -136,12 +177,31 @@ class SourceOpsTests(unittest.TestCase):
         parsed = register_source.parse_labeled_url("docs=https://example.com/docs?foo=bar", 1)
         self.assertEqual(parsed, {"label": "docs", "url": "https://example.com/docs?foo=bar"})
 
+    def test_register_source_requires_minimum_coverage_urls(self) -> None:
+        with self.assertRaises(ValueError):
+            register_source.build_source_entry(
+                source_id="/tanstack/query",
+                title="TanStack Query Docs",
+                urls=["overview=https://tanstack.com/query/latest/docs/framework/react/overview"],
+                aliases=[],
+                versions=["latest"],
+                citations=[],
+                trust="official",
+                domain="code_docs",
+                cadence="manual",
+                chunk_target_chars=900,
+            )
+
     def test_register_source_upserts_existing_entry(self) -> None:
         existing = self._source()
         entry = register_source.build_source_entry(
             source_id=existing["source_id"],
             title="Next.js Docs Replacement",
-            urls=["https://nextjs.org/docs"],
+            urls=[
+                "overview=https://nextjs.org/docs",
+                "api=https://nextjs.org/docs/app/api-reference",
+                "examples=https://github.com/vercel/next.js/tree/canary/examples",
+            ],
             aliases=["next"],
             versions=["15"],
             citations=[],
@@ -153,6 +213,103 @@ class SourceOpsTests(unittest.TestCase):
         updated = register_source.upsert_source_entry([existing], entry)
         self.assertEqual(len(updated), 1)
         self.assertEqual(updated[0]["catalog_metadata"]["title"], "Next.js Docs Replacement")
+
+    def test_registry_rejects_invalid_crawl_target(self) -> None:
+        source = self._source()
+        source["crawl_targets"][0].pop("max_pages")
+        source["crawl_targets"][0]["crawl_strategy"] = "unknown"
+        source["crawl_targets"][0]["coverage_role"] = "unknown"
+        errors = registry.validate_registry([source])
+        self.assertTrue(any("max_pages" in error for error in errors))
+        self.assertTrue(any("unknown crawl_strategy" in error for error in errors))
+        self.assertTrue(any("unknown coverage_role" in error for error in errors))
+
+    def test_registry_rejects_missing_required_coverage_roles(self) -> None:
+        source = self._source()
+        source["crawl_targets"] = source["crawl_targets"][:1]
+        errors = registry.validate_registry([source])
+        self.assertTrue(any("missing required coverage_role" in error for error in errors))
+
+    def test_collect_sitemap_filters_same_host_and_prefix(self) -> None:
+        sitemap = """<?xml version="1.0"?><urlset>
+        <url><loc>https://example.com/docs/a</loc></url>
+        <url><loc>https://example.com/blog/b</loc></url>
+        <url><loc>https://other.example/docs/c</loc></url>
+        </urlset>"""
+        target = {
+            "label": "docs",
+            "source_type": "docs_site",
+            "crawl_strategy": "sitemap",
+            "url": "https://example.com/sitemap.xml",
+            "include_prefixes": ["https://example.com/docs"],
+            "exclude_prefixes": [],
+            "max_pages": 5,
+            "coverage_role": "api_reference",
+        }
+        with patch.object(collect, "_fetch_url", return_value={"body": sitemap}):
+            self.assertEqual(collect._sitemap_urls(target, 5), ["https://example.com/docs/a"])
+
+    def test_collect_sitemap_stops_nested_fetches_at_max_pages(self) -> None:
+        index = """<?xml version="1.0"?><sitemapindex>
+        <sitemap><loc>https://example.com/sitemap-a.xml</loc></sitemap>
+        <sitemap><loc>https://example.com/sitemap-b.xml</loc></sitemap>
+        </sitemapindex>"""
+        sitemap_a = """<?xml version="1.0"?><urlset>
+        <url><loc>https://example.com/docs/a</loc></url>
+        <url><loc>https://example.com/blog/b</loc></url>
+        <url><loc>https://other.example/docs/c</loc></url>
+        <url><loc>https://example.com/docs/excluded</loc></url>
+        <url><loc>https://example.com/docs/e</loc></url>
+        </urlset>"""
+        sitemap_b = """<?xml version="1.0"?><urlset>
+        <url><loc>https://example.com/docs/f</loc></url>
+        </urlset>"""
+        fetched_urls: list[str] = []
+
+        def fake_fetch(url: str, timeout: int) -> dict[str, object]:
+            fetched_urls.append(url)
+            bodies = {
+                "https://example.com/sitemap.xml": index,
+                "https://example.com/sitemap-a.xml": sitemap_a,
+                "https://example.com/sitemap-b.xml": sitemap_b,
+            }
+            return {"body": bodies[url]}
+
+        target = {
+            "label": "docs",
+            "source_type": "docs_site",
+            "crawl_strategy": "sitemap",
+            "url": "https://example.com/sitemap.xml",
+            "include_prefixes": ["https://example.com/docs"],
+            "exclude_prefixes": ["https://example.com/docs/excluded"],
+            "max_pages": 2,
+            "coverage_role": "api_reference",
+        }
+        with patch.object(collect, "_fetch_url", side_effect=fake_fetch):
+            self.assertEqual(collect._sitemap_urls(target, 5), ["https://example.com/docs/a", "https://example.com/docs/e"])
+        self.assertEqual(fetched_urls, ["https://example.com/sitemap.xml", "https://example.com/sitemap-a.xml"])
+
+    def test_collect_github_tree_selects_markdown_docs(self) -> None:
+        tree = {
+            "tree": [
+                {"type": "blob", "path": "docs/guide.md"},
+                {"type": "blob", "path": "docs/app.ts"},
+                {"type": "blob", "path": "examples/demo.mdx"},
+            ]
+        }
+        target = {
+            "label": "repo-docs",
+            "source_type": "repo_docs",
+            "crawl_strategy": "github_tree",
+            "url": "https://github.com/acme/docs/tree/main/docs",
+            "include_prefixes": ["docs"],
+            "exclude_prefixes": [],
+            "max_pages": 10,
+            "coverage_role": "api_reference",
+        }
+        with patch.object(collect, "_fetch_url", return_value={"body": json.dumps(tree)}):
+            urls = collect._github_tree_urls(target, 5)
+        self.assertEqual(urls, ["https://raw.githubusercontent.com/acme/docs/main/docs/guide.md"])
 
     def test_normalize_and_validate_fixture_source(self) -> None:
         source = self._source()
@@ -185,6 +342,24 @@ class SourceOpsTests(unittest.TestCase):
         self.assertGreater(len(rows), 1)
         self.assertTrue(any("#middleware" in row["citation"] for row in rows))
 
+    def test_normalize_keeps_inline_code_inside_paragraph_chunk(self) -> None:
+        source = self._source()
+        raw_path = self.raw_dir / "vercel__next_js"
+        raw_path.mkdir(parents=True)
+        body = (
+            "<html><body><article><h1 id='middleware'>Middleware</h1>"
+            "<p>Use <code>cookies</code> with <code>NextResponse</code> in proxy logic.</p>"
+            "</article></body></html>"
+        )
+        dump_json(
+            raw_path / "latest.json",
+            {"source_id": source["source_id"], "collected_at": "2026-03-18T00:00:00Z", "items": [{"url": self.fixture.as_uri(), "final_url": self.fixture.as_uri(), "label": "middleware", "role": "public_urls", "body": body, "content_type": "text/html", "sha256": "x", "status_code": 200, "etag": None, "last_modified": None}]},
+        )
+        rows = normalize.normalize_source(source, self.raw_dir, self.normalized_dir)
+        self.assertEqual(len(rows), 1)
+        self.assertIn("cookies", rows[0]["content"])
+        self.assertIn("NextResponse", rows[0]["content"])
+
     def test_normalize_fails_on_suspicious_html_extraction(self) -> None:
         source = self._source()
         raw_path = self.raw_dir / "vercel__next_js"
@@ -196,7 +371,26 @@ class SourceOpsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             normalize.normalize_source(source, self.raw_dir, self.normalized_dir)
 
-    def test_normalize_ignores_discovery_urls(self) -> None:
+    def test_normalize_accepts_large_hydration_html_with_valid_article(self) -> None:
+        source = self._source()
+        raw_path = self.raw_dir / "vercel__next_js"
+        raw_path.mkdir(parents=True)
+        body = (
+            "<html><head><title>Next.js Middleware</title></head><body>"
+            "<script>" + ("var x='hydration';" * 5000) + "</script>"
+            "<article><h1 id='middleware'>Middleware</h1><p>"
+            + ("Use middleware to inspect cookies. " * 8)
+            + "</p></article></body></html>"
+        )
+        dump_json(
+            raw_path / "latest.json",
+            {"source_id": source["source_id"], "collected_at": "2026-03-18T00:00:00Z", "items": [{"url": self.fixture.as_uri(), "final_url": self.fixture.as_uri(), "label": "middleware", "role": "public_urls", "body": body, "content_type": "text/html", "sha256": "x", "status_code": 200, "etag": None, "last_modified": None}]},
+        )
+        rows = normalize.normalize_source(source, self.raw_dir, self.normalized_dir)
+        self.assertGreater(len(rows), 0)
+        self.assertTrue(rows[0]["citation"].endswith("#middleware"))
+
+    def test_normalize_records_crawl_target_metadata(self) -> None:
         source = self._source()
         raw_path = self.raw_dir / "vercel__next_js"
         raw_path.mkdir(parents=True)
@@ -206,13 +400,79 @@ class SourceOpsTests(unittest.TestCase):
                 "source_id": source["source_id"],
                 "collected_at": "2026-03-18T00:00:00Z",
                 "items": [
-                    {"url": self.fixture.as_uri(), "final_url": self.fixture.as_uri(), "label": "middleware", "role": "public_urls", "body": self.fixture.read_text(), "content_type": "text/html", "sha256": "x", "status_code": 200, "etag": None, "last_modified": None},
-                    {"url": "https://nextjs.org/docs", "final_url": "https://nextjs.org/docs", "label": "docs-index", "role": "discovery_urls", "body": "<html><body>index</body></html>", "content_type": "text/html", "sha256": "y", "status_code": 200, "etag": "1", "last_modified": "yesterday"},
+                    {"url": self.fixture.as_uri(), "final_url": self.fixture.as_uri(), "label": "middleware", "role": "crawl_targets", "source_type": "docs_site", "target_label": "middleware", "coverage_role": "api_reference", "body": self.fixture.read_text(), "content_type": "text/html", "sha256": "x", "status_code": 200, "etag": None, "last_modified": None},
+                    {"url": "https://nextjs.org/docs/llms-full.txt", "final_url": "https://nextjs.org/docs/llms-full.txt", "label": "llms-full", "role": "crawl_targets", "source_type": "llms_full", "target_label": "llms-full", "coverage_role": "overview", "body": "# Middleware\nUse middleware from llms-full.", "content_type": "text/plain", "sha256": "y", "status_code": 200, "etag": "1", "last_modified": "yesterday"},
                 ],
             },
         )
         rows = normalize.normalize_source(source, self.raw_dir, self.normalized_dir)
-        self.assertTrue(all("docs-index" not in row["section"] for row in rows))
+        self.assertEqual({row["source_type"] for row in rows}, {"docs_site", "llms_full"})
+        self.assertEqual({row["coverage_role"] for row in rows}, {"api_reference", "overview"})
+        self.assertTrue(any(row["target_label"] == "llms-full" for row in rows))
+
+    def test_normalize_markdown_keeps_code_fence_together(self) -> None:
+        source = self._source()
+        source["extraction_hints"]["chunk_target_chars"] = 80
+        raw_path = self.raw_dir / "vercel__next_js"
+        raw_path.mkdir(parents=True)
+        markdown = "\n".join(
+            [
+                "# Middleware",
+                "Use middleware before rendering.",
+                "",
+                "```ts",
+                "export function middleware() {",
+                "  return Response.json({ ok: true })",
+                "}",
+                "```",
+                "",
+                "More text after the code fence.",
+            ]
+        )
+        dump_json(
+            raw_path / "latest.json",
+            {
+                "source_id": source["source_id"],
+                "collected_at": "2026-03-18T00:00:00Z",
+                "items": [
+                    {"url": "https://nextjs.org/docs/llms-full.txt", "final_url": "https://nextjs.org/docs/llms-full.txt", "label": "llms-full", "role": "crawl_targets", "source_type": "llms_full", "target_label": "llms-full", "body": markdown, "content_type": "text/plain", "sha256": "x", "status_code": 200, "etag": None, "last_modified": None}
+                ],
+            },
+        )
+        rows = normalize.normalize_source(source, self.raw_dir, self.normalized_dir)
+        self.assertTrue(any(row["citation"].endswith("#middleware") for row in rows))
+        code_rows = [row for row in rows if "```ts" in row["content"]]
+        self.assertEqual(len(code_rows), 1)
+        self.assertIn("```", code_rows[0]["content"])
+
+    def test_normalize_skips_markdown_chunks_without_display_text(self) -> None:
+        source = self._source()
+        raw_path = self.raw_dir / "vercel__next_js"
+        raw_path.mkdir(parents=True)
+        dump_json(
+            raw_path / "latest.json",
+            {
+                "source_id": source["source_id"],
+                "collected_at": "2026-03-18T00:00:00Z",
+                "items": [
+                    {"url": "https://nextjs.org/docs/llms-full.txt", "final_url": "https://nextjs.org/docs/llms-full.txt", "label": "llms-full", "role": "crawl_targets", "source_type": "llms_full", "target_label": "llms-full", "body": "# Middleware\n<OnlyTag>\n\nUse middleware.", "content_type": "text/plain", "sha256": "x", "status_code": 200, "etag": None, "last_modified": None}
+                ],
+            },
+        )
+        rows = normalize.normalize_source(source, self.raw_dir, self.normalized_dir)
+        self.assertTrue(all(row["snippet"] for row in rows))
+
+    def test_normalize_deduplicates_identical_chunks(self) -> None:
+        source = self._source()
+        raw_path = self.raw_dir / "vercel__next_js"
+        raw_path.mkdir(parents=True)
+        item = {"url": "https://nextjs.org/docs/a", "final_url": "https://nextjs.org/docs/a", "label": "docs", "role": "crawl_targets", "source_type": "docs_site", "target_label": "docs", "body": "<html><body><article><h1 id='a'>A</h1><p>Use middleware safely.</p></article></body></html>", "content_type": "text/html", "sha256": "x", "status_code": 200, "etag": None, "last_modified": None}
+        dump_json(
+            raw_path / "latest.json",
+            {"source_id": source["source_id"], "collected_at": "2026-03-18T00:00:00Z", "items": [item, {**item, "target_label": "llms-full"}]},
+        )
+        rows = normalize.normalize_source(source, self.raw_dir, self.normalized_dir)
+        self.assertEqual(len(rows), 1)
 
     def test_normalize_records_extraction_warning_when_content_root_misses(self) -> None:
         source = self._source()
@@ -289,6 +549,10 @@ class SourceOpsTests(unittest.TestCase):
             "version": "15",
             "citation": "https://nextjs.org/docs/middleware",
             "tags": ["routing"],
+            "source_type": "docs_site",
+            "target_label": "middleware",
+            "coverage_role": "api_reference",
+            "upstream_url": "https://nextjs.org/docs/middleware",
         }
         text = embedding.document_input_text(payload)
         self.assertIn("Next.js Middleware", text)
@@ -302,6 +566,9 @@ class SourceOpsTests(unittest.TestCase):
         self.assertEqual(metadata["source_id"], "/vercel/next.js")
         self.assertEqual(metadata["section_index"], 0)
         self.assertEqual(metadata["chunk_index"], 0)
+        self.assertEqual(metadata["source_type"], "docs_site")
+        self.assertEqual(metadata["target_label"], "middleware")
+        self.assertEqual(metadata["coverage_role"], "api_reference")
         self.assertEqual(len(metadata["chunk_id"]), 16)
         self.assertEqual(
             metadata["content_sha256"],
@@ -366,6 +633,43 @@ class SourceOpsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             kinic_writer.build_wiki_nodes(source, [empty])
 
+    def test_kinic_writer_uses_write_nodes_batch_command(self) -> None:
+        source = self._source()
+        payload = {
+            "source_id": "/vercel/next.js",
+            "title": "Next.js Middleware",
+            "snippet": "Use middleware to inspect cookies.",
+            "content": "Full chunk text",
+            "section": "middleware",
+            "version": "15",
+            "citation": "https://nextjs.org/docs/middleware",
+            "tags": ["routing"],
+            "source_type": "docs_site",
+            "target_label": "middleware",
+            "coverage_role": "api_reference",
+            "upstream_url": "https://nextjs.org/docs/middleware",
+        }
+        normalized_path = self.normalized_dir / "vercel__next_js.jsonl"
+        self.normalized_dir.mkdir(parents=True)
+        write_text(normalized_path, json.dumps(payload, sort_keys=True) + "\n")
+        settings = self._settings()
+        settings = settings.__class__(
+            **{
+                **settings.__dict__,
+                "normalized_dir": self.normalized_dir,
+                "wiki_nodes_dir": self.root / "wiki_nodes",
+            }
+        )
+        report = kinic_writer.write_batch(source, settings, "staging", dry_run=True)
+        self.assertEqual(report["command_count"], 1)
+        self.assertEqual(report["node_count"], 3)
+        command = report["results"][0]["command"]
+        self.assertIn("write-nodes", command)
+        self.assertNotIn("write-node", command)
+        batch_nodes = json.loads(Path(report["batch_input"]).read_text())
+        self.assertEqual(len(batch_nodes), 3)
+        self.assertEqual(batch_nodes[-1]["metadata_json"], kinic_writer.build_wiki_nodes(source, [payload])[-1]["metadata_json"])
+
     def test_smoke_uses_cli_contract(self) -> None:
         source = self._source()
         settings = self._settings()
@@ -422,6 +726,14 @@ class SourceOpsTests(unittest.TestCase):
         )
         report = run_refresh.run_refresh(settings, source_id=source["source_id"], dry_run=True)
         self.assertIn(report["status"], {"ok", "partial"})
+        self.assertIn("quality_gates", report["sources"][0])
+        self.assertIn("wiki_write", report["sources"][0]["staging"])
+        self.assertIn("search-remote returns docs chunks under /Wiki/sources", report["sources"][0]["quality_gates"]["required_smoke"])
+        self.assertEqual(report["sources"][0]["coverage"]["missing_required_roles"], [])
+        self.assertEqual(
+            set(report["sources"][0]["coverage"]["coverage_role_breakdown"]),
+            {"overview", "api_reference", "examples"},
+        )
         self.assertTrue(any(self.reports_dir.iterdir()))
 
     def test_run_refresh_accepts_manual_source_when_explicit(self) -> None:
@@ -491,15 +803,16 @@ class SourceOpsTests(unittest.TestCase):
             }
         )
         with patch.object(run_refresh, "collect_source", return_value={}), patch.object(
-            run_refresh, "apply_memory", return_value={"status": "ok"}
+            run_refresh, "apply_wiki", return_value={"status": "ok"}
         ), patch.object(run_refresh, "smoke_source", return_value={"status": "ok"}
         ):
             report = run_refresh.run_refresh(settings, source_id=source["source_id"], dry_run=False)
         self.assertEqual(report["sources"][0]["status"], "needs_review")
         self.assertIn("warnings", report["sources"][0])
 
-    def test_run_refresh_noop_keeps_previous_success_snapshot(self) -> None:
+    def test_run_refresh_marks_needs_review_when_noop_lacks_required_role(self) -> None:
         source = self._source()
+        source["extraction_hints"]["content_roots"] = []
         registry_path = self.root / "registry.yaml"
         write_text(registry_path, json.dumps([source], indent=2))
         raw_path = self.raw_dir / "vercel__next_js"
@@ -510,18 +823,56 @@ class SourceOpsTests(unittest.TestCase):
                 "source_id": source["source_id"],
                 "collected_at": "2026-03-18T00:00:00Z",
                 "items": [
-                    {
-                        "url": self.fixture.as_uri(),
-                        "final_url": self.fixture.as_uri(),
-                        "label": "middleware",
-                        "role": "public_urls",
-                        "body": self.fixture.read_text(),
-                        "content_type": "text/html",
-                        "sha256": "x",
-                        "status_code": 200,
-                        "etag": None,
-                        "last_modified": None,
-                    }
+                    {"url": self.fixture.as_uri(), "final_url": self.fixture.as_uri(), "label": "overview", "role": "crawl_targets", "source_type": "docs_site", "target_label": "overview", "coverage_role": "overview", "body": self.fixture.read_text(), "content_type": "text/html", "sha256": "x", "status_code": 200, "etag": None, "last_modified": None},
+                    {"url": f"{self.fixture.as_uri()}?api", "final_url": f"{self.fixture.as_uri()}?api", "label": "api", "role": "crawl_targets", "source_type": "docs_site", "target_label": "api", "coverage_role": "api_reference", "body": self.fixture.read_text(), "content_type": "text/html", "sha256": "y", "status_code": 200, "etag": None, "last_modified": None},
+                ],
+            },
+        )
+        os.environ["SOURCE_OPS_STAGING_DATABASE_ID"] = "staging-db"
+        os.environ["SOURCE_OPS_PROD_DATABASE_ID"] = "prod-db"
+        os.environ["SOURCE_OPS_WIKI_CLI_BIN"] = "python3 -c \"print('write ok')\""
+        os.environ["SOURCE_OPS_CLI_BIN"] = f"python3 {self._cli_stub()}"
+        settings = load_settings()
+        settings = settings.__class__(
+            **{
+                **settings.__dict__,
+                "registry_path": registry_path,
+                "raw_dir": self.raw_dir,
+                "normalized_dir": self.normalized_dir,
+                "reports_dir": self.reports_dir,
+                "state_path": self.state_path,
+            }
+        )
+        initial_rows = normalize.normalize_source(source, self.raw_dir, self.normalized_dir)
+        initial_diff = diff.compute_diff(source, initial_rows, None, settings)
+        dump_json(self.state_path, {"last_run_at": None, "sources": {source["source_id"]: initial_diff}})
+        with patch.object(run_refresh, "collect_source", return_value={}), patch.object(
+            run_refresh, "apply_wiki", return_value={"status": "ok"}
+        ) as apply_wiki_mock, patch.object(run_refresh, "smoke_source", return_value={"status": "ok"}):
+            report = run_refresh.run_refresh(settings, source_id=source["source_id"], dry_run=False)
+        item = report["sources"][0]
+        self.assertEqual(item["status"], "needs_review")
+        self.assertEqual(item["coverage"]["missing_required_roles"], ["examples"])
+        self.assertEqual(item["diff"]["missing_required_roles"], ["examples"])
+        self.assertTrue(item["quality_gates"]["needs_review"])
+        apply_wiki_mock.assert_called_once()
+
+    def test_run_refresh_noop_keeps_previous_success_snapshot(self) -> None:
+        source = self._source()
+        source["extraction_hints"]["content_roots"] = []
+        registry_path = self.root / "registry.yaml"
+        write_text(registry_path, json.dumps([source], indent=2))
+        raw_path = self.raw_dir / "vercel__next_js"
+        raw_path.mkdir(parents=True)
+        dump_json(
+            raw_path / "latest.json",
+            {
+                "source_id": source["source_id"],
+                "collected_at": "2026-03-18T00:00:00Z",
+                "items": [
+                    {"url": self.fixture.as_uri(), "final_url": self.fixture.as_uri(), "label": "overview", "role": "crawl_targets", "source_type": "docs_site", "target_label": "overview", "coverage_role": "overview", "body": self.fixture.read_text(), "content_type": "text/html", "sha256": "x", "status_code": 200, "etag": None, "last_modified": None},
+                    {"url": f"{self.fixture.as_uri()}?api", "final_url": f"{self.fixture.as_uri()}?api", "label": "api", "role": "crawl_targets", "source_type": "docs_site", "target_label": "api", "coverage_role": "api_reference", "body": self.fixture.read_text(), "content_type": "text/html", "sha256": "y", "status_code": 200, "etag": None, "last_modified": None},
+                    {"url": f"{self.fixture.as_uri()}?examples", "final_url": f"{self.fixture.as_uri()}?examples", "label": "examples", "role": "crawl_targets", "source_type": "examples", "target_label": "examples", "coverage_role": "examples", "body": self.fixture.read_text(), "content_type": "text/html", "sha256": "z", "status_code": 200, "etag": None, "last_modified": None},
                 ],
             },
         )
@@ -573,7 +924,7 @@ class SourceOpsTests(unittest.TestCase):
         previous_snapshot_path.parent.mkdir(parents=True, exist_ok=True)
         dump_json(previous_snapshot_path, [{"source_id": source["source_id"], "citation": "https://nextjs.org/docs", "title": "old", "snippet": "old"}])
         snapshot = {"source": source, "payload_snapshot_path": str(previous_snapshot_path)}
-        with patch.object(run_refresh, "apply_memory", side_effect=[
+        with patch.object(run_refresh, "apply_wiki", side_effect=[
             {"status": "ok"},
             {"status": "failed"},
             {"status": "ok"},

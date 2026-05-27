@@ -2,48 +2,36 @@
 
 This directory is intentionally separate from `src/`.
 
-`kinic-context-cli` remains a read-only retrieval CLI. Source data preparation, validation, and ingestion are separate responsibilities because they mutate memory instance contents and require operational tooling.
+`kinic-context-cli` remains a read-only retrieval CLI. Source data preparation, validation, and ingestion are separate responsibilities because they mutate an existing Kinic Wiki database.
 
 ## Purpose
 
-Use the documents in this folder to standardize how source-oriented memory instances are populated so that `query`, `pack`, and `cite` can return stable titles, citations, and versions.
+Use the documents in this folder to standardize how public documentation sources are collected, normalized, and written as Wiki nodes so that `query`, `pack`, and `cite` return stable titles, citations, and versions.
 
 ## Scope
 
 This folder defines:
 
-- the canonical payload schema for source chunks
-- the build / validate / ingest workflow
-- the expected future helper tool names
-- the `source_ops/` automation entrypoints for collection, diffing, apply, and smoke
+- canonical payload schema for source chunks
+- build / validate / wiki write workflow
+- `source_ops/` automation entrypoints for collection, diffing, apply, and smoke
 
-This folder does not add a new ingest CLI. Use existing `kinic-cli` or `kinic-py` to write into memory instances.
+This repo does not deploy a new backend. Runtime storage and search use the existing Kinic Wiki database through `kinic-vfs-cli`.
 
 ## v1 Source Set
 
-The initial source logical IDs are fixed to:
+The registry in `tools/source_ops/registry.yaml` is the source list. Each logical source is represented by:
 
-- `/vercel/next.js`
-- `/supabase/docs`
-- `/react/docs`
-
-Each logical source maps to memory instance canister IDs through the catalog canister, not a local source map env var.
-
-## Planned Helper Tools
-
-These names are reserved for future implementation:
-
-- `tools/build_source_payloads.*`
-- `tools/validate_source_payloads.*`
-- `tools/ingest_source_payloads.*`
-
-They should remain outside the read-only CLI binary and should not be linked into `src/`.
+- source metadata stored in the registry
+- raw source and docs chunk Wiki nodes
+- canonical identity in each node `metadata_json`
 
 ## Existing Write Path
 
-The current write path is expected to use one of:
+The current write path is:
 
-- `kinic-cli insert`
-- `kinic-py` / `KinicMemories.insert_markdown`
-
-The helper tools in this folder should prepare and validate payloads, then hand them to the existing write APIs.
+- collect upstream docs with `tools/source_ops/collect.py`
+- normalize payload JSONL with `tools/source_ops/normalize.py`
+- validate payloads with `tools/source_ops/validate.py`
+- write Wiki nodes with `tools/source_ops/apply_wiki.py`
+- verify read behavior with `tools/source_ops/smoke.py`

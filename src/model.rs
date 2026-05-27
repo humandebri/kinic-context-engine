@@ -52,7 +52,7 @@ pub struct PackResolvedSource {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PackMetrics {
     pub resolved_sources_count: usize,
-    pub queried_canisters_count: usize,
+    pub queried_sources_count: usize,
     pub returned_snippets_count: usize,
     pub selected_evidence_count: usize,
     pub estimated_pack_tokens: usize,

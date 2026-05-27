@@ -1,6 +1,6 @@
 // Where: tests/benchmark_tests.rs
 // What: Deterministic benchmark-style tests for pack fan-out and retrieval budgeting.
-// Why: Prove efficiency changes with stable fixtures before relying on PocketIC or live canisters.
+// Why: Prove efficiency changes with stable fixtures before relying on live wiki verification.
 mod common_benchmark;
 
 use common_benchmark::{
@@ -17,9 +17,7 @@ async fn pack_benchmark_shows_tighter_selection_than_baseline() {
 
     let baseline = baseline_report(&fixture);
     let current = current_report(&fixture).await;
-    assert!(
-        current.metrics.queried_canisters_count < baseline.metrics.queried_canisters_count
-    );
+    assert!(current.metrics.queried_sources_count < baseline.metrics.queried_sources_count);
 }
 
 #[tokio::test]
@@ -31,9 +29,7 @@ async fn pack_benchmark_scales_retrieval_depth_with_token_budget() {
 
     let baseline = baseline_report(&fixture);
     let current = current_report(&fixture).await;
-    assert!(
-        baseline.metrics.selected_evidence_count >= current.metrics.selected_evidence_count
-    );
+    assert!(baseline.metrics.selected_evidence_count >= current.metrics.selected_evidence_count);
     assert!(current.metrics.estimated_pack_tokens <= baseline.metrics.estimated_pack_tokens);
 }
 
@@ -68,7 +64,7 @@ async fn pack_benchmark_improves_multiple_cases() {
     for fixture in deterministic_fixtures() {
         let baseline = baseline_report(&fixture);
         let current = current_report(&fixture).await;
-        if current.metrics.queried_canisters_count < baseline.metrics.queried_canisters_count
+        if current.metrics.queried_sources_count < baseline.metrics.queried_sources_count
             || current.metrics.estimated_pack_tokens < baseline.metrics.estimated_pack_tokens
         {
             improved_cases += 1;

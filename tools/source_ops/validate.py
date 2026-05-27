@@ -1,6 +1,6 @@
 # Where: tools/source_ops/validate.py
 # What: Validation rules for canonical source payloads and registry-backed source semantics.
-# Why: Fail fast before writing bad payloads into memory canisters or updating catalog metadata.
+# Why: Fail fast before writing bad payloads into Wiki nodes or updating source metadata.
 from __future__ import annotations
 
 import argparse

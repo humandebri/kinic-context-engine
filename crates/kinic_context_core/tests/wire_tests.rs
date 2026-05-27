@@ -1,11 +1,8 @@
 // Where: crates/kinic_context_core/tests/wire_tests.rs
-// What: Candid wire-shape tests for source metadata and launcher queries.
+// What: Candid wire-shape tests for source metadata.
 // Why: Keep decode expectations aligned with the remaining public output contracts.
 use candid::{Decode, Encode};
-use kinic_context_core::{
-    launcher::LauncherState,
-    types::{FilterSourcesArgs, ResolvedCatalogSource, SourceMetadata},
-};
+use kinic_context_core::types::{FilterSourcesArgs, ResolvedCatalogSource, SourceMetadata};
 
 #[test]
 fn catalog_list_request_round_trip_decodes_as_unit_args() {
@@ -66,14 +63,4 @@ fn catalog_get_response_round_trip_decodes() {
         decoded.expect("source should exist").source_id,
         "/vercel/next.js"
     );
-}
-
-#[test]
-fn launcher_list_response_round_trip_decodes() {
-    let encoded = Encode!(&vec![
-        LauncherState::Running(candid::Principal::anonymous())
-    ])
-    .expect("encode should succeed");
-    let decoded = Decode!(&encoded, Vec<LauncherState>).expect("decode should succeed");
-    assert_eq!(decoded.len(), 1);
 }

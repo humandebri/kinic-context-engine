@@ -5,8 +5,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use ndarray::{Array2, Array3, Axis};
 use ort::{session::Session, value::TensorRef};
 use std::{
-    env,
-    fs,
+    env, fs,
     path::{Path, PathBuf},
     sync::{Mutex, OnceLock},
 };
@@ -89,7 +88,11 @@ impl E5Runtime {
 
         let input_ids = Array2::from_shape_vec(
             (1, token_count),
-            encoded.get_ids().iter().map(|value| i64::from(*value)).collect(),
+            encoded
+                .get_ids()
+                .iter()
+                .map(|value| i64::from(*value))
+                .collect(),
         )
         .context("failed to build input_ids tensor")?;
         let attention_mask = Array2::from_shape_vec(
@@ -171,12 +174,10 @@ fn resolve_onnx_path(model_dir: &Path) -> Result<PathBuf> {
         .filter(|path| path.extension().is_some_and(|ext| ext == "onnx"))
         .collect::<Vec<_>>();
     entries.sort();
-    entries.into_iter().next().ok_or_else(|| {
-        anyhow!(
-            "missing ONNX model file under {}",
-            onnx_dir.display()
-        )
-    })
+    entries
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("missing ONNX model file under {}", onnx_dir.display()))
 }
 
 fn mean_pool_and_normalize(hidden: Array3<f32>, attention_mask: Array2<i64>) -> Result<Vec<f32>> {
@@ -185,9 +186,7 @@ fn mean_pool_and_normalize(hidden: Array3<f32>, attention_mask: Array2<i64>) -> 
         .get(2)
         .ok_or_else(|| anyhow!("unexpected hidden state shape"))?;
     if hidden_dim != EMBEDDING_DIM {
-        bail!(
-            "unexpected embedding dimension: expected {EMBEDDING_DIM}, got {hidden_dim}"
-        );
+        bail!("unexpected embedding dimension: expected {EMBEDDING_DIM}, got {hidden_dim}");
     }
     let mut pooled = vec![0.0_f32; hidden_dim];
     let mut count = 0.0_f32;
@@ -240,7 +239,11 @@ mod tests {
         hidden[[0, 1, 1]] = 0.0;
         let mask = Array2::from_shape_vec((1, 2), vec![1_i64, 1_i64]).expect("shape");
         let embedding = mean_pool_and_normalize(hidden, mask).expect("pooling should succeed");
-        let norm = embedding.iter().map(|value| value * value).sum::<f32>().sqrt();
+        let norm = embedding
+            .iter()
+            .map(|value| value * value)
+            .sum::<f32>()
+            .sqrt();
         assert!((norm - 1.0).abs() < 0.0001);
         assert_eq!(embedding.len(), EMBEDDING_DIM);
     }

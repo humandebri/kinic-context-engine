@@ -1,5 +1,5 @@
 // Where: src/benchmark.rs
-// What: Shared benchmark report shapes for deterministic and PocketIC retrieval comparisons.
+// What: Shared benchmark report shapes for deterministic and live wiki retrieval comparisons.
 // Why: Keep benchmark JSON stable while rendering user-facing summaries as benchmark cases.
 use serde::{Deserialize, Serialize};
 
@@ -16,7 +16,7 @@ pub struct BenchmarkScenario {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BenchmarkMetricsSnapshot {
     pub resolved_sources_count: usize,
-    pub queried_canisters_count: usize,
+    pub queried_sources_count: usize,
     pub selected_evidence_count: usize,
     pub estimated_pack_tokens: usize,
     pub empty_source_count: usize,
@@ -40,9 +40,9 @@ pub struct BenchmarkScenarioReport {
     pub scenario: BenchmarkScenario,
     pub baseline: BenchmarkStrategyResult,
     pub current_deterministic: BenchmarkStrategyResult,
-    pub current_pocket_ic: Option<BenchmarkStrategyResult>,
-    pub pocket_ic_skipped: bool,
-    pub improved_canisters: bool,
+    pub current_live: Option<BenchmarkStrategyResult>,
+    pub live_skipped: bool,
+    pub improved_sources: bool,
     pub improved_tokens: bool,
     pub quality_guard_passed: bool,
 }
@@ -56,41 +56,41 @@ pub fn scenario_report(
     scenario: BenchmarkScenario,
     baseline: BenchmarkStrategyResult,
     current_deterministic: BenchmarkStrategyResult,
-    current_pocket_ic: Option<BenchmarkStrategyResult>,
+    current_live: Option<BenchmarkStrategyResult>,
     quality_guard_passed: bool,
 ) -> BenchmarkScenarioReport {
-    let comparison = current_pocket_ic
+    let comparison = current_live
         .as_ref()
         .unwrap_or(&current_deterministic)
         .metrics
         .clone();
     BenchmarkScenarioReport {
         scenario,
-        improved_canisters: comparison.queried_canisters_count
-            <= baseline.metrics.queried_canisters_count,
+        improved_sources: comparison.queried_sources_count
+            <= baseline.metrics.queried_sources_count,
         improved_tokens: comparison.estimated_pack_tokens <= baseline.metrics.estimated_pack_tokens,
         quality_guard_passed,
         baseline,
         current_deterministic,
-        pocket_ic_skipped: current_pocket_ic.is_none(),
-        current_pocket_ic,
+        live_skipped: current_live.is_none(),
+        current_live,
     }
 }
 
 pub fn markdown_summary(report: &BenchmarkSuiteReport) -> String {
     let mut lines = vec![
-        "| benchmark case | baseline canisters | current canisters | baseline tokens | current tokens | current docs | current fallback | pocketic canisters | pocketic tokens | verdict |".to_string(),
+        "| benchmark case | baseline sources | current sources | baseline tokens | current tokens | current docs | current fallback | live sources | live tokens | verdict |".to_string(),
         "| --- | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | --- |".to_string(),
     ];
 
     for scenario in &report.scenarios {
-        let pocketic_canisters = scenario
-            .current_pocket_ic
+        let live_sources = scenario
+            .current_live
             .as_ref()
-            .map(|result| result.metrics.queried_canisters_count.to_string())
+            .map(|result| result.metrics.queried_sources_count.to_string())
             .unwrap_or_else(|| "skipped".to_string());
-        let pocketic_tokens = scenario
-            .current_pocket_ic
+        let live_tokens = scenario
+            .current_live
             .as_ref()
             .map(|result| result.metrics.estimated_pack_tokens.to_string())
             .unwrap_or_else(|| "skipped".to_string());
@@ -109,14 +109,14 @@ pub fn markdown_summary(report: &BenchmarkSuiteReport) -> String {
         lines.push(format!(
             "| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} |",
             scenario.scenario.name,
-            scenario.baseline.metrics.queried_canisters_count,
-            scenario.current_deterministic.metrics.queried_canisters_count,
+            scenario.baseline.metrics.queried_sources_count,
+            scenario.current_deterministic.metrics.queried_sources_count,
             scenario.baseline.metrics.estimated_pack_tokens,
             scenario.current_deterministic.metrics.estimated_pack_tokens,
             current_docs,
             current_fallback,
-            pocketic_canisters,
-            pocketic_tokens,
+            live_sources,
+            live_tokens,
             verdict_label(scenario),
         ));
     }
@@ -125,7 +125,7 @@ pub fn markdown_summary(report: &BenchmarkSuiteReport) -> String {
 }
 
 fn verdict_label(report: &BenchmarkScenarioReport) -> &'static str {
-    if report.quality_guard_passed && (report.improved_canisters || report.improved_tokens) {
+    if report.quality_guard_passed && (report.improved_sources || report.improved_tokens) {
         "pass"
     } else if report.quality_guard_passed {
         "guard-only"
@@ -161,7 +161,7 @@ pub fn strategy_result_with_retrieval(
 pub fn metrics_snapshot(metrics: &PackMetrics) -> BenchmarkMetricsSnapshot {
     BenchmarkMetricsSnapshot {
         resolved_sources_count: metrics.resolved_sources_count,
-        queried_canisters_count: metrics.queried_canisters_count,
+        queried_sources_count: metrics.queried_sources_count,
         selected_evidence_count: metrics.selected_evidence_count,
         estimated_pack_tokens: metrics.estimated_pack_tokens,
         empty_source_count: metrics.empty_source_count,

@@ -61,10 +61,23 @@ def build_source_entry(
         raise ValueError("source_id must start with `/`")
     if not title:
         raise ValueError("title must not be empty")
-    if not urls:
-        raise ValueError("at least one --url is required")
-    public_urls = [parse_labeled_url(value, index + 1) for index, value in enumerate(urls)]
-    citation_values = citations or [item["url"] for item in public_urls]
+    if len(urls) < 3:
+        raise ValueError("at least three --url values are required for overview, api_reference, and examples")
+    crawl_targets = [
+        {
+            **parse_labeled_url(value, index + 1),
+            "source_type": "docs_site",
+            "crawl_strategy": "explicit_urls",
+            "include_prefixes": [],
+            "exclude_prefixes": [],
+            "max_pages": 1,
+            "coverage_role": ["overview", "api_reference", "examples"][index]
+            if index < 3
+            else "api_reference",
+        }
+        for index, value in enumerate(urls)
+    ]
+    citation_values = citations or [item["url"] for item in crawl_targets]
     for citation in citation_values:
         if not _is_absolute_url(citation):
             raise ValueError(f"citation must be absolute: {citation}")
@@ -73,8 +86,7 @@ def build_source_entry(
         "source_id": source_id,
         "kind": "docs",
         "enabled": True,
-        "public_urls": public_urls,
-        "discovery_urls": [],
+        "crawl_targets": crawl_targets,
         "normalization_profile": "docs_html",
         "catalog_metadata": {
             "title": title,

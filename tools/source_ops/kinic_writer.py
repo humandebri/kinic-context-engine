@@ -1,6 +1,6 @@
 # Where: tools/source_ops/kinic_writer.py
 # What: Convert normalized source payloads into Kinic Wiki nodes and write them with kinic-vfs-cli.
-# Why: Reuse the existing wiki canister API instead of maintaining catalog/source canisters.
+# Why: Reuse the existing wiki database API instead of maintaining a separate source backend.
 from __future__ import annotations
 
 import argparse
@@ -102,21 +102,22 @@ def write_batch(
     payload_path = Path(payload_path_override) if payload_path_override else settings.normalized_dir / f"{source_slug(str(source['source_id']))}.jsonl"
     payloads = load_jsonl(payload_path)
     nodes = build_wiki_nodes(source, payloads)
-    materialized = materialize_nodes(settings, environment, source, nodes)
-    commands = [_write_node_command(settings, database_id, node) for node in materialized]
-    results = [
-        run_command(command, dry_run=dry_run, timeout=settings.write_timeout_seconds)
-        for command in commands
-    ]
+    input_path = materialize_write_nodes_input(settings, environment, source, nodes)
+    command = _write_nodes_command(settings, database_id, input_path)
+    results = [run_command(command, dry_run=dry_run, timeout=settings.write_timeout_seconds)]
     failures = [result for result in results if result["exit_code"] != 0]
+    visible_results = results[:5] if dry_run else failures
     return {
         "source_id": source["source_id"],
         "environment": environment,
         "rollback": rollback,
         "database_id": database_id,
         "node_count": len(nodes),
+        "command_count": 1,
+        "batch_input": str(input_path),
+        "omitted_result_count": max(0, len(results) - len(visible_results)),
         "status": "ok" if not failures else "failed",
-        "results": results,
+        "results": visible_results,
     }
 
 
@@ -135,20 +136,26 @@ def materialize_nodes(
     return materialized
 
 
-def _write_node_command(settings: Settings, database_id: str, node: dict[str, Any]) -> list[str]:
+def materialize_write_nodes_input(
+    settings: Settings,
+    environment: str,
+    source: dict[str, Any],
+    nodes: list[dict[str, Any]],
+) -> Path:
+    root = ensure_dir(settings.wiki_nodes_dir / environment / source_slug(str(source["source_id"])))
+    input_path = root / "nodes.json"
+    write_text(input_path, json.dumps(nodes, ensure_ascii=True, indent=2, sort_keys=True) + "\n")
+    return input_path
+
+
+def _write_nodes_command(settings: Settings, database_id: str, input_path: Path) -> list[str]:
     return [
         *shlex.split(settings.wiki_cli_bin),
         "--database-id",
         database_id,
-        "write-node",
-        "--path",
-        str(node["path"]),
-        "--kind",
-        str(node["kind"]),
+        "write-nodes",
         "--input",
-        str(node["content_path"]),
-        "--metadata-json",
-        str(node["metadata_json"]),
+        str(input_path),
         "--json",
     ]
 
@@ -165,8 +172,8 @@ def _raw_source_content(source: dict[str, Any]) -> str:
         "## Citations",
     ]
     lines.extend(f"- {citation}" for citation in metadata.get("citations", []))
-    lines.extend(["", "## Public URLs"])
-    lines.extend(f"- [{item['label']}]({item['url']})" for item in source.get("public_urls", []))
+    lines.extend(["", "## Crawl targets"])
+    lines.extend(f"- [{item['label']}]({item['url']})" for item in source.get("crawl_targets", []))
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -233,6 +240,10 @@ def _metadata_json(
         "retrieved_at": metadata.get("retrieved_at", ""),
     }
     if payload is not None:
+        value["source_type"] = payload.get("source_type", "docs_site")
+        value["target_label"] = payload.get("target_label", "")
+        value["coverage_role"] = payload.get("coverage_role", "")
+        value["upstream_url"] = payload.get("upstream_url", payload.get("citation", ""))
         value["chunk_id"] = chunk_id
         value["section_index"] = section_index
         value["chunk_index"] = chunk_index

@@ -6,8 +6,8 @@ The main user-facing binary is `kinic-context-cli`.
 
 ## What This Repo Contains
 
-- `kinic-context-cli`: legacy read-only CLI for resolving sources and generating evidence packs
-- `crates/kinic_context_core`: shared client, engine, config, and type logic
+- `kinic-context-cli`: read-only CLI for resolving Wiki-backed sources and generating evidence packs
+- `crates/kinic_context_core`: shared config and wire types
 - `tools/source_ops`: source collection, normalization, wiki node writing, and smoke checks
 
 ## Quick Start
@@ -20,8 +20,6 @@ cargo run -- resolve "next middleware"
 ## Status
 
 - workspace build and non-ignored tests pass locally
-- PocketIC ignored tests require `POCKET_IC_BIN`
-- live acceptance tests require real canister environment variables
 - retrieval 改善の段階計画は [retrieval_improvement_plan.md](/Users/0xhude/Desktop/work/KINIC%20Context%20Engine/retrieval_improvement_plan.md) で管理する
 - Phase 3 の比較評価と移植 gate は [retrieval_phase3_plan.md](/Users/0xhude/Desktop/work/KINIC%20Context%20Engine/retrieval_phase3_plan.md) で管理する
 - 改善ループの試行記録は [retrieval_tuning_log.md](/Users/0xhude/Desktop/work/KINIC%20Context%20Engine/retrieval_tuning_log.md) に残す
@@ -42,9 +40,8 @@ cargo run -- resolve "next middleware"
 - `SOURCE_OPS_STAGING_DATABASE_ID`: staging Kinic Wiki database id for source writes
 - `SOURCE_OPS_PROD_DATABASE_ID`: production Kinic Wiki database id for source writes
 - `SOURCE_OPS_WIKI_CLI_BIN`: optional `kinic-vfs-cli` command override; use a wrapper script when the executable path contains spaces
-- `KINIC_CONTEXT_IC_HOST`: optional IC host, defaults to `https://ic0.app`
-- `KINIC_CONTEXT_LAUNCHER_CANISTER_ID`: optional launcher canister ID for live verification
-- `KINIC_CONTEXT_FETCH_ROOT_KEY`: optional `true/1` for local replica reads
+- `KINIC_CONTEXT_DATABASE_ID` / `VFS_DATABASE_ID`: Wiki database id used by `kinic-context-cli`
+- `KINIC_CONTEXT_WIKI_CLI_BIN`: optional `kinic-vfs-cli` command override for read commands
 - `EMBEDDING_API_ENDPOINT`: optional remote embedding endpoint override; unset means local Rust/ONNX mode
 - `KINIC_CONTEXT_EMBEDDING_MODEL`: optional embedding model hint, defaults to `intfloat/multilingual-e5-large`
 - `KINIC_CONTEXT_EMBEDDING_MODEL_DIR`: optional local model directory; defaults to `.local/models/multilingual-e5-large`
@@ -55,7 +52,7 @@ cargo run -- resolve "next middleware"
 ## Architecture
 
 - Kinic Wiki canister and its existing database API are the storage/runtime boundary
-- `tools/source_ops` converts normalized docs payloads into wiki nodes and writes them with `kinic-vfs-cli write-node`
+- `tools/source_ops` converts normalized docs payloads into wiki nodes and writes them with `kinic-vfs-cli write-nodes`
 - raw source nodes live under `/Sources/raw/<source_slug>/<source_slug>.md`
 - searchable docs chunks live under `/Wiki/sources/<source_slug>/<version>/<citation-hash>-<section>-s<section>-c<chunk>.md`
 - docs chunks link back to raw source nodes so existing wiki `source_evidence` can recover provenance
@@ -81,7 +78,9 @@ source 登録は `tools/source_ops/register_source.py` で registry に追記し
 python3 tools/source_ops/register_source.py \
   --source-id /tanstack/query \
   --title "TanStack Query Docs" \
-  --url docs=https://tanstack.com/query/latest/docs/framework/react/overview \
+  --url overview=https://tanstack.com/query/latest/docs/framework/react/overview \
+  --url api=https://tanstack.com/query/latest/docs/framework/react/reference/useQuery \
+  --url examples=https://tanstack.com/query/latest/docs/framework/react/examples/basic \
   --alias "tanstack query" \
   --version latest
 ```
@@ -95,7 +94,19 @@ python3 tools/source_ops/run_refresh.py --source /tanstack/query --dry-run
 python3 tools/source_ops/run_refresh.py --source /tanstack/query
 ```
 
-既定の write path は `payloads -> wiki nodes -> kinic-vfs-cli write-node* -> smoke` です。
+既定の write path は `payloads -> wiki nodes -> kinic-vfs-cli write-nodes -> smoke` です。
+
+## Context7-style Operations
+
+- source と crawl target の正本 metadata は `tools/source_ops/registry.yaml` で管理します
+- crawl target は `explicit_urls`、`llms_full`、`sitemap`、`github_tree` で収集します
+- source追加より、既存sourceの `coverage_role` を `overview` / `api_reference` / `examples` 中心に満たすtarget追加を優先します
+- 現在の v1 source は主要web/OSS docs 22件です: Next.js、React、Supabase、Cloudflare Workers、TanStack Query、Vite、Prisma、Tailwind CSS、OpenAI Platform、Auth.js、Drizzle、Zod、tRPC、shadcn/ui、Radix UI、Playwright、Vitest、Stripe、Clerk、Neon、Turso、Hono
+- 日次更新は `python3 tools/source_ops/run_refresh.py --dry-run` で差分確認し、staging smoke 成功後に prod へ昇格します
+- refresh report の確認項目は `target_count`、`fetched_url_count`、`normalized_chunk_count`、`source_type_breakdown`、`coverage_role_breakdown`、`missing_required_roles`、差分件数、warning件数、staging/prod smoke status です
+- smoke は `search-remote` の docs chunk hit と `read-node-context` の `/Sources/raw/` evidence link を必須にします
+- source 追加は official docs URL、version strategy、citation、smoke query、chunk品質が揃った場合だけ `register_source.py` で行います
+- stale 判定は registry の `retrieved_at` と upstream の latest timestamp / changelog を比較します
 
 ## Verification
 
@@ -144,7 +155,7 @@ bash scripts/setup_local_embedding.sh
 - deterministic benchmark の検証は `tests/benchmark_tests.rs` にあります
 - benchmark report の検証は `tests/benchmark_runner_tests.rs` にあります
 - benchmark の出力は `pack.metrics` JSON と共通の benchmark report JSON schema から参照します
-- deterministic と PocketIC は同じ `BenchmarkSuiteReport` / `markdown_summary()` 経路で比較する
+- deterministic と live wiki は同じ `BenchmarkSuiteReport` / `markdown_summary()` 経路で比較する
 - docs と Markdown summary では `scenario` を `検証ケース` の意味で扱います
 - 現在の比較で見ている点:
   - baseline の `resolve -> max_sources fan-out` より source 選定を絞れているか
@@ -165,7 +176,7 @@ bash scripts/setup_local_embedding.sh
 
 - add a real GitHub repository at the `repository` URL declared in `Cargo.toml`
 - keep `LICENSE` at the repo root
-- document live environment values before asking users to run ignored acceptance tests
+- document Wiki database values before asking users to run live smoke checks
 - avoid absolute local filesystem links in docs
 
 ## MVP sources

@@ -12,23 +12,23 @@ if __package__ in {None, ""}:
     import sys
 
     sys.path.append(str(Path(__file__).resolve().parents[2]))
-    from tools.source_ops.apply_memory import apply_memory
+    from tools.source_ops.apply_wiki import apply_wiki
     from tools.source_ops.collect import collect_source
     from tools.source_ops.common import dump_json, load_json, load_jsonl, slugify_source_id, utc_now, write_text
     from tools.source_ops.config import Settings, load_settings
     from tools.source_ops.diff import compute_diff
     from tools.source_ops.normalize import load_normalization_meta, normalize_source
-    from tools.source_ops.registry import load_registry, select_sources, validate_registry
+    from tools.source_ops.registry import REQUIRED_COVERAGE_ROLES, load_registry, select_sources, validate_registry
     from tools.source_ops.smoke import smoke_source
     from tools.source_ops.validate import validate_source
 else:
-    from .apply_memory import apply_memory
+    from .apply_wiki import apply_wiki
     from .collect import collect_source
     from .common import dump_json, load_json, load_jsonl, slugify_source_id, utc_now, write_text
     from .config import Settings, load_settings
     from .diff import compute_diff
     from .normalize import load_normalization_meta, normalize_source
-    from .registry import load_registry, select_sources, validate_registry
+    from .registry import REQUIRED_COVERAGE_ROLES, load_registry, select_sources, validate_registry
     from .smoke import smoke_source
     from .validate import validate_source
 
@@ -87,7 +87,7 @@ def _rollback_source(
 
     previous_source = snapshot["source"]
     previous_payload_path = _write_snapshot_jsonl(settings, snapshot)
-    memory = apply_memory(
+    wiki_write = apply_wiki(
         previous_source,
         settings,
         "prod",
@@ -98,9 +98,9 @@ def _rollback_source(
     smoke = smoke_source(previous_source, settings, "prod", dry_run)
     return {
         "status": "rolled_back"
-        if all(step["status"] == "ok" for step in [memory, smoke])
+        if all(step["status"] == "ok" for step in [wiki_write, smoke])
         else "rollback_failed",
-        "memory": memory,
+        "wiki_write": wiki_write,
         "smoke": smoke,
     }
 
@@ -114,6 +114,55 @@ def _save_report(settings: Settings, report: dict[str, object]) -> None:
     for item in report["sources"]:
         lines.append(f"- {item['source_id']}: {item['status']}")
     write_text(md_path, "\n".join(lines) + "\n")
+
+
+def _quality_gates(
+    diff_result: dict[str, object],
+    extraction_warnings: list[object],
+    missing_required_roles: list[str],
+) -> dict[str, object]:
+    return {
+        "added_records": diff_result["added_records"],
+        "changed_records": diff_result["changed_records"],
+        "removed_records": diff_result["removed_records"],
+        "normalization_warning_count": len(extraction_warnings),
+        "missing_required_roles": missing_required_roles,
+        "needs_review": bool(diff_result["needs_review"] or extraction_warnings or missing_required_roles),
+        "required_smoke": [
+            "search-remote returns docs chunks under /Wiki/sources",
+            "read-node-context exposes /Sources/raw/ evidence links",
+        ],
+    }
+
+
+def _coverage_summary(source: dict[str, object], payloads: list[dict[str, object]]) -> dict[str, object]:
+    breakdown: dict[str, int] = {}
+    role_breakdown: dict[str, int] = {}
+    for payload in payloads:
+        source_type = str(payload.get("source_type", "docs_site"))
+        breakdown[source_type] = breakdown.get(source_type, 0) + 1
+        coverage_role = str(payload.get("coverage_role") or "")
+        if coverage_role:
+            role_breakdown[coverage_role] = role_breakdown.get(coverage_role, 0) + 1
+    target_roles = {
+        str(target.get("coverage_role"))
+        for target in source.get("crawl_targets", [])
+        if target.get("coverage_role")
+    }
+    required_roles = REQUIRED_COVERAGE_ROLES | target_roles
+    missing_required_roles = sorted(role for role in required_roles if role_breakdown.get(role, 0) == 0)
+    return {
+        "target_count": len(source.get("crawl_targets", [])),
+        "fetched_url_count": len({row.get("upstream_url") for row in payloads if row.get("upstream_url")}),
+        "normalized_chunk_count": len(payloads),
+        "source_type_breakdown": dict(sorted(breakdown.items())),
+        "coverage_role_breakdown": dict(sorted(role_breakdown.items())),
+        "missing_required_roles": missing_required_roles,
+    }
+
+
+def _diff_report(diff_result: dict[str, object]) -> dict[str, object]:
+    return {key: value for key, value in diff_result.items() if key != "record_hashes"}
 
 
 def _normalized_rows(settings: Settings, source_id: str) -> list[dict[str, object]]:
@@ -159,9 +208,10 @@ def run_refresh(settings: Settings, *, source_id: str | None, dry_run: bool) -> 
             report["status"] = "partial"
             continue
 
+        normalized_rows = _normalized_rows(settings, source["source_id"])
         diff_result = compute_diff(
             source,
-            _normalized_rows(settings, source["source_id"]),
+            normalized_rows,
             state["sources"].get(source["source_id"]),
             settings,
         )
@@ -170,10 +220,16 @@ def run_refresh(settings: Settings, *, source_id: str | None, dry_run: bool) -> 
         if extraction_warnings:
             diff_result["needs_review"] = True
             diff_result["extraction_warning_count"] = len(extraction_warnings)
-        item["diff"] = diff_result
+        item["coverage"] = _coverage_summary(source, normalized_rows)
+        missing_required_roles = item["coverage"]["missing_required_roles"]
+        if missing_required_roles:
+            diff_result["needs_review"] = True
+            diff_result["missing_required_roles"] = missing_required_roles
+        item["diff"] = _diff_report(diff_result)
+        item["quality_gates"] = _quality_gates(diff_result, extraction_warnings, missing_required_roles)
         if extraction_warnings:
             item["warnings"] = extraction_warnings
-        if diff_result["status"] == "noop" and not diff_result["metadata_changed"]:
+        if diff_result["status"] == "noop" and not diff_result["metadata_changed"] and not diff_result["needs_review"]:
             item["status"] = "noop"
             report["sources"].append(item)
             state["sources"][source["source_id"]] = _merge_state(
@@ -182,9 +238,9 @@ def run_refresh(settings: Settings, *, source_id: str | None, dry_run: bool) -> 
             )
             continue
 
-        stage_memory = apply_memory(source, settings, "staging", dry_run)
+        stage_wiki_write = apply_wiki(source, settings, "staging", dry_run)
         stage_smoke = smoke_source(source, settings, "staging", dry_run)
-        item["staging"] = {"memory": stage_memory, "smoke": stage_smoke}
+        item["staging"] = {"wiki_write": stage_wiki_write, "smoke": stage_smoke}
         if any(step["status"] != "ok" for step in item["staging"].values()):
             item["status"] = "failed"
             report["sources"].append(item)
@@ -198,9 +254,9 @@ def run_refresh(settings: Settings, *, source_id: str | None, dry_run: bool) -> 
                 report["status"] = "partial"
             continue
 
-        prod_memory = apply_memory(source, settings, "prod", dry_run)
+        prod_wiki_write = apply_wiki(source, settings, "prod", dry_run)
         prod_smoke = smoke_source(source, settings, "prod", dry_run)
-        item["prod"] = {"memory": prod_memory, "smoke": prod_smoke}
+        item["prod"] = {"wiki_write": prod_wiki_write, "smoke": prod_smoke}
         if any(step["status"] != "ok" for step in item["prod"].values()):
             item["rollback"] = _rollback_source(source, previous_snapshot, settings, dry_run)
             item["status"] = item["rollback"]["status"]

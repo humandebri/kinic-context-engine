@@ -7,7 +7,6 @@ use anyhow::Result;
 pub struct ReadConfig {
     pub database_id: String,
     pub wiki_cli_bin: String,
-    pub launcher_canister_id: Option<String>,
 }
 
 impl ReadConfig {
@@ -17,11 +16,9 @@ impl ReadConfig {
             .unwrap_or_default();
         let wiki_cli_bin = std::env::var("KINIC_CONTEXT_WIKI_CLI_BIN")
             .unwrap_or_else(|_| "kinic-vfs-cli".to_string());
-        let launcher_canister_id = std::env::var("KINIC_CONTEXT_LAUNCHER_CANISTER_ID").ok();
         Ok(Self {
             database_id,
             wiki_cli_bin,
-            launcher_canister_id,
         })
     }
 }

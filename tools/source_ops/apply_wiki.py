@@ -1,6 +1,6 @@
-# Where: tools/source_ops/apply_memory.py
+# Where: tools/source_ops/apply_wiki.py
 # What: Apply normalized payloads to an existing Kinic Wiki database.
-# Why: Reuse wiki canister APIs instead of writing to dedicated memory canisters.
+# Why: Keep writes on the existing wiki database instead of dedicated source backends.
 from __future__ import annotations
 
 import argparse
@@ -48,7 +48,7 @@ def build_writer_commands(
     ]]
 
 
-def apply_memory(
+def apply_wiki(
     source: dict[str, object],
     settings: Settings,
     environment: str,
@@ -75,7 +75,7 @@ def apply_memory(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Apply normalized payloads to memory canisters")
+    parser = argparse.ArgumentParser(description="Apply normalized payloads to a Kinic Wiki database")
     parser.add_argument("--source", required=True, help="source_id to apply")
     parser.add_argument("--env", choices=["staging", "prod"], required=True)
     parser.add_argument("--dry-run", action="store_true")
@@ -83,7 +83,7 @@ def main() -> int:
 
     settings = load_settings()
     source = select_sources(load_registry(settings), source_id=args.source)[0]
-    report = apply_memory(source, settings, args.env, args.dry_run)
+    report = apply_wiki(source, settings, args.env, args.dry_run)
     print(json.dumps(report, indent=2))
     return 0 if report["status"] == "ok" else 1
 

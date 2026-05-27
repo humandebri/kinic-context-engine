@@ -1,6 +1,6 @@
 // Where: src/provider.rs
 // What: Source querying backed by kinic-vfs-cli search.
-// Why: Keep retrieval on the existing wiki canister API instead of source canisters.
+// Why: Keep retrieval on the existing wiki API instead of a separate source backend.
 use anyhow::Result;
 
 use crate::{
@@ -93,7 +93,9 @@ impl SourceQueryProvider for WikiCliSourceQueryProvider {
                 } else {
                     metadata.retrieved_at
                 },
-                version: metadata.version.or_else(|| version.map(ToString::to_string)),
+                version: metadata
+                    .version
+                    .or_else(|| version.map(ToString::to_string)),
                 stale: false,
                 score: hit.score.unwrap_or(0.0),
             });

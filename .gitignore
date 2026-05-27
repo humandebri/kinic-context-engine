@@ -10,4 +10,5 @@ __pycache__/
 tools/source_ops/artifacts/raw/
 tools/source_ops/artifacts/normalized/
 tools/source_ops/artifacts/reports/
+tools/source_ops/artifacts/wiki_nodes/
 tools/source_ops/state/snapshots/
